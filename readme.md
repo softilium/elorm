@@ -16,7 +16,7 @@ Elorm implements set of ideas from my business application engineer experience w
 
 ## Implementation
 
-- Elorm allows you to declare your data schema using JSON schema (with automatic validation). Elorm-gen compiles it to a strongly-typed set of structs with methods. It also creates a factory struct and methods for operating with data: loading, creating new entities, caching entitiies and handling database structures. 
+- Elorm allows you to declare your data schema using JSON schema (with automatic validation). [Elorm-gen](https://github.com/softilium/elorm-gen) compiles it to a strongly-typed set of structs with methods. It also creates a factory struct and methods for operating with data: loading, creating new entities, caching entitiies and handling database structures. 
 - Supported databases:
 	- PostgreSQL
 	- SQLite
@@ -52,6 +52,6 @@ DataVersion is optional at the entity definition level.
 
 ### Elorm-gen
 
-- Elorm-gen processes JSON with entity schema declarations and generates ready-to-use db-context. It is enriched version of "Factory" with application-scope entity types, getters/setters for fields, etc.
+- [Elorm-gen](https://github.com/softilium/elorm-gen) processes JSON with entity schema declarations and generates ready-to-use db-context. It is enriched version of "Factory" with application-scope entity types, getters/setters for fields, etc.
 - It dramatically decreases application boilerplate code and makes our code strongly-typed.
 - Alongside with created db-context we can define event handlers for it, such as fillNew, beforeSave, afterSave events.
