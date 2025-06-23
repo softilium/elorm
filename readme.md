@@ -5,14 +5,14 @@ The Golang ORM for crafting elegant, database-powered applications.
 ## Ideas under the hood
 
 Elorm implements set of ideas from my business application engineer experience working:
-- Create a universal ID for records/entities. This ID should be globally unique, sequential across all used databases, and should act as a URL for a particular entity. For better handling of database indexes ID should be sortable in order or creation new IDs line autoincrement numbers.
-- Define the set of entities declaratively, including navigation properties. Its profilable when you context is growing.
-- Lazy load navigation properties. It retrieves a referenced record on first access to the navigation property, from cache or from the database. I can having a lot of navigation properties without impact of performance. 
-- Let the library handle migrations automatically. It should be possible to upgrade from any old version to any new one. Developers don't need to register each schema change as a separate migration. And, of course, developers can run their own code as part of this migration.
-- Create a common core entity with basic functionality (loading, saving, caching, etc.). Application entities must be based on it.
-- Create a global entity cache to track all loaded/created entities and reduce redundant queries to database. Of course, we can tune cache size to balance betwee speed and memory for application.
-- Generate strongly-typed structs with all needed methods based on schema declaration. It should eliminate boilerplate in application code. Entities are ready to use after a couple of lines of code.
-- Allow developers to use the "idiomatic database/sql way" to work with data. Engineer can use regular SQL select queries.
+- Use **global unique human-readable sequental ID** for records/entities. This ID should be globally unique, sequential across all used databases, and should act as a URL for a particular entity. For better handling of database indexes ID should be sortable in order or creation new IDs line autoincrement numbers.
+- **Define the set of entities declaratively**, including navigation properties. Its profilable when you context is growing.
+- **Lazy load navigation properties**. It retrieves a referenced record on first access to the navigation property, from cache or from the database. I can having a lot of navigation properties without impact of performance. 
+- Let the library **handle migrations automatically**. It should be possible to upgrade from any old version to any new one. Developers don't need to register each schema change as a separate migration. And, of course, developers can run their own code as part of this migration.
+- Create a common **core entity with basic functionality (loading, saving, caching, etc.)**. Application entities must be based on it.
+- Create a **global entity cache** to track all loaded/created entities and reduce redundant queries to database. Of course, we can tune cache size to balance betwee speed and memory for application.
+- **Generate strongly-typed structs** with all needed methods based on schema declaration. It should eliminate boilerplate in application code. Entities are ready to use after a couple of lines of code.
+- Allow developers to **use the "idiomatic database/sql way"** to work with data. Engineer can use regular SQL select queries.
 
 ## Implementation
 
