@@ -1,0 +1,540 @@
+package elorm
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+)
+
+const (
+	// 6 field types are supported
+	fieldDefTypeString = 100
+	fieldDefTypeInt    = 200
+	fieldDefTypeBool   = 300
+	fieldDefTypeRef    = 400
+	fieldDefNumeric    = 500
+	fieldDefDateTime   = 600
+)
+
+const (
+	DbDialectPostgres = 100
+	DbDialectMSSQL    = 200
+	DbDialectMySQL    = 300
+	DbDialectSQLite   = 400
+)
+
+const (
+	DataVersionCheckNever   = -1
+	DataVersionCheckDefault = 0
+	DataVersionCheckAlways  = 1
+)
+
+const refSplitter = "$$"
+
+const refFieldLength = 107 // length of Ref field in characters, used for string representation of references
+
+const (
+	RefFieldName         = "Ref"
+	IsDeletedFieldName   = "IsDeleted"
+	DataVersionFieldName = "DataVersion"
+)
+
+type fieldDef struct {
+	EntityDef *EntityDef
+	Name      string
+	Type      int
+	Len       int //for string
+	Precision int //for numeric
+	Scale     int //for numeric
+	DefValue  any
+}
+
+func (T *fieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
+	switch T.Type {
+	case fieldDefTypeString:
+		x := &fieldValueString{v: T.DefValue.(string)}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	case fieldDefTypeInt:
+		x := &fieldValueInt{v: T.DefValue.(int64)}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	case fieldDefTypeBool:
+		x := &fieldValueBool{v: T.DefValue.(bool)}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	case fieldDefTypeRef:
+		x := &FieldValueRef{factory: T.EntityDef.Factory}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	case fieldDefNumeric:
+		x := &fieldValueNumeric{v: T.DefValue.(float64)}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	case fieldDefDateTime:
+		x := &fieldValueDateTime{}
+		x.entity = entity
+		x.def = T
+		return x, nil
+	default:
+		return nil, fmt.Errorf("fieldDef.CreateFieldValue: unknown field type %d for field %s", T.Type, T.Name)
+	}
+}
+
+func (T *fieldDef) SqlColumnName() (string, error) {
+
+	switch T.EntityDef.Factory.dbDialect {
+	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
+		return strings.ToLower(T.Name), nil
+	default:
+		return "", fmt.Errorf("fieldDef.SqlColumnName: Unknown database type")
+	}
+
+}
+
+func (T *fieldDef) SqlColumnType() (string, error) {
+	dialect := T.EntityDef.Factory.dbDialect
+	switch dialect {
+	case DbDialectPostgres:
+		return T.sqlColumnTypePostgres()
+	case DbDialectMSSQL:
+		return T.sqlColumnTypeMSSQL()
+	case DbDialectMySQL:
+		return T.sqlColumnTypeMySQL()
+	case DbDialectSQLite:
+		return T.sqlColumnTypeSQLite()
+	default:
+		return "", fmt.Errorf("fieldDef.SqlColumnType: unknown database type %d", dialect)
+	}
+}
+
+func (T *fieldDef) sqlColumnTypePostgres() (string, error) {
+	switch T.Type {
+	case fieldDefTypeString:
+		return fmt.Sprintf("varchar(%d)", T.Len), nil
+	case fieldDefTypeInt:
+		return "int", nil
+	case fieldDefTypeBool:
+		return "bool", nil
+	case fieldDefTypeRef:
+		t, err := T.EntityDef.Factory.refColumnType()
+		if err != nil {
+			return "", err
+		}
+		return t, nil
+	case fieldDefDateTime:
+		return "timestamp without time zone", nil
+	case fieldDefNumeric:
+		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
+	default:
+		return "", fmt.Errorf("fieldDef.sqlColumnTypePostgres: unknown field type: %d", T.Type)
+	}
+}
+
+func (T *fieldDef) sqlColumnTypeMSSQL() (string, error) {
+	switch T.Type {
+	case fieldDefTypeString:
+		return fmt.Sprintf("nvarchar(%d)", T.Len), nil
+	case fieldDefTypeInt:
+		return "bigint", nil
+	case fieldDefTypeBool:
+		return "bit", nil
+	case fieldDefTypeRef:
+		return fmt.Sprintf("nvarchar(%d)", refFieldLength), nil
+	case fieldDefDateTime:
+		return "datetime", nil
+	case fieldDefNumeric:
+		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
+	default:
+		return "", fmt.Errorf("fieldDef.sqlColumnTypeMSSQL: unknown field type: %d", T.Type)
+	}
+}
+
+func (T *fieldDef) sqlColumnTypeMySQL() (string, error) {
+	switch T.Type {
+	case fieldDefTypeString:
+		return fmt.Sprintf("varchar(%d)", T.Len), nil
+	case fieldDefTypeInt:
+		return "int", nil
+	case fieldDefTypeBool:
+		return "tinyint(1)", nil
+	case fieldDefTypeRef:
+		return "varchar(36)", nil
+	case fieldDefDateTime:
+		return "datetime", nil
+	case fieldDefNumeric:
+		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
+	default:
+		return "", fmt.Errorf("fieldDef.sqlColumnTypeMySQL: unknown field type: %d", T.Type)
+	}
+}
+
+func (T *fieldDef) sqlColumnTypeSQLite() (string, error) {
+	switch T.Type {
+	case fieldDefTypeString:
+		return fmt.Sprintf("varchar(%d)", T.Len), nil
+	case fieldDefTypeInt:
+		return "integer", nil
+	case fieldDefTypeBool:
+		return "boolean", nil
+	case fieldDefTypeRef:
+		return fmt.Sprintf("varchar(%d)", refFieldLength), nil
+	case fieldDefDateTime:
+		return "datetime", nil
+	case fieldDefNumeric:
+		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
+	default:
+		return "", fmt.Errorf("fieldDef.sqlColumnTypeSQLite: unknown field type: %d", T.Type)
+	}
+}
+
+func (T *EntityDef) checkName(name string) error {
+	for _, v := range T.FieldDefs {
+		if v.Name == name {
+			return fmt.Errorf("field %s already exists in entity %s", name, T.ObjectName)
+		}
+	}
+	return nil
+}
+
+func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		EntityDef: T,
+		Name:      name,
+		Type:      fieldDefTypeString,
+		Len:       size,
+		DefValue:  defValue,
+	}
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		EntityDef: T,
+		Name:      name,
+		Type:      fieldDefTypeBool,
+		DefValue:  defValue,
+	}
+
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+func (T *EntityDef) AddDateTimeFieldDef(name string) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		EntityDef: T,
+		Name:      name,
+		Type:      fieldDefDateTime,
+	}
+
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		EntityDef: T,
+		Name:      name,
+		Type:      fieldDefTypeInt,
+		DefValue:  defValue,
+	}
+
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+func (T *EntityDef) AddRefFieldDef(name string, refType *EntityDef) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		Name:      name,
+		Type:      fieldDefTypeRef,
+		EntityDef: refType,
+	}
+
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, DefValue float64) (*fieldDef, error) {
+	if err := T.checkName(name); err != nil {
+		return nil, err
+	}
+	nr := &fieldDef{
+		Name:      name,
+		Type:      fieldDefNumeric,
+		DefValue:  DefValue,
+		Precision: Precision,
+		Scale:     Scale,
+		EntityDef: T,
+	}
+
+	T.FieldDefs = append(T.FieldDefs, nr)
+	return nr, nil
+}
+
+type IndexDef struct {
+	PK        bool
+	Unique    bool
+	FieldDefs []*fieldDef
+}
+
+type EntityHandlerFunc func(entity any) error
+
+type EntityDef struct { //base for any real entity types
+	Factory              *Factory
+	DataVersionCheckMode int // DataVersionCheckNever, DataVersionCheckDefault, DataVersionCheckAlways
+	ObjectName           string
+	TableName            string
+	FieldDefs            []*fieldDef
+	IndexDefs            []*IndexDef
+	RefField             *fieldDef
+	IsDeletedField       *fieldDef                // field for soft delete
+	DataVersionField     *fieldDef                // field for data versioning
+	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom one
+	selectStmt           *sql.Stmt
+
+	FillNewHandler    EntityHandlerFunc
+	BeforeSaveHandler EntityHandlerFunc
+	AfterSaveHandler  EntityHandlerFunc
+}
+
+func (T *EntityDef) SqlTableName() (string, error) {
+	switch T.Factory.dbDialect {
+	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
+		return strings.ToLower(T.TableName), nil
+	default:
+		return "", fmt.Errorf("EntityDef.SqlTableName: Unknown database type %d", T.Factory.dbDialect)
+	}
+}
+
+func (T *EntityDef) ensureDBStructure() error {
+
+	switch T.Factory.dbDialect {
+	case DbDialectPostgres:
+
+		tran, err := T.Factory.DB.Begin()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
+		}
+		defer tran.Rollback()
+
+		tn, err := T.SqlTableName()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
+		}
+
+		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s()", tn))
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
+		}
+
+		for _, v := range T.FieldDefs {
+
+			colType, err := v.SqlColumnType()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
+			}
+
+			coln, err := v.SqlColumnName()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
+			}
+
+			_, err = tran.Exec(fmt.Sprintf("alter table %s add column if not exists %s %s", tn, coln, colType))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
+			}
+
+			_, err = tran.Exec(fmt.Sprintf("alter table %s alter column %s type %s", tn, coln, colType))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to alter column %s: %w", coln, err)
+			}
+
+		}
+
+		var cnt int
+		row := tran.QueryRow(fmt.Sprintf("select count(*) as chk from information_schema.constraint_column_usage where table_name='%s' and constraint_name='%s_pk'", tn, tn))
+
+		err = row.Scan(&cnt)
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to scan constraint count: %w", err)
+		}
+
+		if cnt == 0 {
+			_, err = tran.Exec(fmt.Sprintf("alter table %s add constraint %s_pk primary key (Ref)", tn, tn))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add primary key constraint: %w", err)
+			}
+		}
+
+		err = tran.Commit()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
+		}
+		return nil
+	case DbDialectMSSQL:
+		tran, err := T.Factory.DB.Begin()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
+		}
+		defer tran.Rollback()
+
+		// Table name
+		tn, err := T.SqlTableName()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
+		}
+
+		_, err = tran.Exec(fmt.Sprintf("if not exists (select * from sysobjects where name='%s' and xtype='U') create table %s (ref nvarchar(%d) primary key)", tn, tn, refFieldLength))
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
+		}
+
+		for _, v := range T.FieldDefs {
+			colType, err := v.SqlColumnType()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
+			}
+			coln, err := v.SqlColumnName()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
+			}
+			_, err = tran.Exec(fmt.Sprintf("if not exists (select * from syscolumns where id=object_id('%s') and name='%s') alter table %s add %s %s", tn, coln, tn, coln, colType))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
+			}
+		}
+		err = tran.Commit()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
+		}
+		return nil
+	case DbDialectMySQL:
+		tran, err := T.Factory.DB.Begin()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
+		}
+		defer tran.Rollback()
+
+		// Table name
+		tn, err := T.SqlTableName()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
+		}
+
+		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(36) primary key)", tn))
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
+		}
+
+		for _, v := range T.FieldDefs {
+			colType, err := v.SqlColumnType()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
+			}
+			coln, err := v.SqlColumnName()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
+			}
+
+			rows, err := tran.Query(fmt.Sprintf("SELECT 1 FROM information_schema.columns WHERE table_name = '%s' AND column_name = '%s'", tn, coln))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
+			}
+			if !rows.Next() {
+				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
+				if err != nil {
+					return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
+				}
+			}
+			rows.Close()
+		}
+		err = tran.Commit()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
+		}
+		return nil
+	case DbDialectSQLite:
+		tran, err := T.Factory.DB.Begin()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
+		}
+		defer tran.Rollback()
+
+		// Table name
+		tn, err := T.SqlTableName()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
+		}
+
+		// Create table if not exists with ref as primary key
+		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(%d) primary key)", tn, refFieldLength))
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
+		}
+
+		for _, v := range T.FieldDefs {
+			colType, err := v.SqlColumnType()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
+			}
+			coln, err := v.SqlColumnName()
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
+			}
+
+			// Check if column exists
+			rows, err := tran.Query(fmt.Sprintf("PRAGMA table_info(%s)", tn))
+			if err != nil {
+				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
+			}
+			colExists := false
+			for rows.Next() {
+				var cid int
+				var name, ctype string
+				var notnull, pk int
+				var dfltValue any
+				if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err == nil {
+					if name == coln {
+						colExists = true
+						break
+					}
+				}
+			}
+			rows.Close()
+			if !colExists {
+				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
+				if err != nil {
+					return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
+				}
+			}
+		}
+		err = tran.Commit()
+		if err != nil {
+			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown database type %d", T.Factory.dbDialect)
+	}
+}
