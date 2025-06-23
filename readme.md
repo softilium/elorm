@@ -1,3 +1,7 @@
+# ELORM
+
+The Golang ORM for crafting elegant, database-powered applications.
+
 ## Ideas under the hood
 
 Elorm implements set of ideas from my business application engineer experience working:
