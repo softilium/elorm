@@ -6,11 +6,10 @@ import (
 	"time"
 )
 
+const refStringLength = 12 // length for reference string, enougn for century
+var refBaseTime = time.Date(2025, time.June, 23, 0, 0, 0, 0, time.Local).UTC()
 var lastRefValue int64
 var lastRefValueLock sync.Mutex
-
-// Reference time constant - only needs to be created once
-var refBaseTime = time.Date(2025, time.June, 23, 0, 0, 0, 0, time.Local).UTC()
 
 func NewRef() string {
 	lastRefValueLock.Lock()
@@ -23,7 +22,7 @@ func NewRef() string {
 		lastRefValue++
 	}
 	res := strconv.FormatInt(lastRefValue, 36)
-	for len(res) < 12 {
+	for len(res) < refStringLength {
 		res = "0" + res
 	}
 	return res

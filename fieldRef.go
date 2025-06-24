@@ -54,7 +54,7 @@ func (T *FieldValueRef) Get() (any, error) {
 
 	r, err := T.factory.LoadEntityWrapped(T.v)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fieldValueRef.Get: failed to load entity: %w", err)
 	}
 	return r, nil
 
@@ -64,7 +64,7 @@ func (T *FieldValueRef) GetOld() (any, error) {
 
 	r, err := T.factory.LoadEntityWrapped(T.old)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fieldValueRef.GetOld: failed to load entity: %w", err)
 	}
 	return r, nil
 

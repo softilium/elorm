@@ -2,7 +2,6 @@ package elorm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,10 +25,10 @@ type Factory struct {
 
 func CreateFactory(dbDialect string, connectionString string) (*Factory, error) {
 	if dbDialect == "" {
-		return nil, fmt.Errorf("Factory.CreateFactory: dbDialect cannot be empty")
+		return nil, fmt.Errorf("Factory.CreateFactory: dbDialect is empty")
 	}
 	if connectionString == "" {
-		return nil, fmt.Errorf("Factory.CreateFactory: connectionString cannot be empty")
+		return nil, fmt.Errorf("Factory.CreateFactory: connectionString is empty")
 	}
 
 	var dbd int
@@ -43,7 +42,7 @@ func CreateFactory(dbDialect string, connectionString string) (*Factory, error) 
 	case "sqlite", "sqlite3":
 		dbd = DbDialectSQLite
 	default:
-		return nil, fmt.Errorf("unsupported db dialect: %s", dbDialect)
+		return nil, fmt.Errorf("Factory.CreateFactory: unsupported db dialect: %s", dbDialect)
 	}
 
 	r := &Factory{
@@ -56,12 +55,12 @@ func CreateFactory(dbDialect string, connectionString string) (*Factory, error) 
 	var err error
 	r.DB, err = sql.Open(dbDialect, connectionString)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Factory.CreateFactory: failed to open DB: %w", err)
 	}
 
 	err = r.DB.Ping()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Factory.CreateFactory: failed to ping DB: %w", err)
 	}
 
 	return r, nil
@@ -81,10 +80,10 @@ func (T *Factory) SetDataVersionCheckMode(mode int) error {
 
 func (T *Factory) CreateEntityDef(ObjectName string, TableName string) (*EntityDef, error) {
 	if ObjectName == "" {
-		return nil, errors.New("Factory.CreateEntityDef: entity definition name cannot be empty")
+		return nil, fmt.Errorf("Factory.CreateEntityDef: ObjectName is empty")
 	}
 	if TableName == "" {
-		return nil, errors.New("Factory.CreateEntityDef: table name cannot be empty")
+		return nil, fmt.Errorf("Factory.CreateEntityDef: TableName is empty")
 	}
 	for _, def := range T.EntityDefs {
 
@@ -152,7 +151,7 @@ func (T *Factory) IsRef(s string) (bool, *EntityDef) {
 
 func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 	if def == nil {
-		return nil, fmt.Errorf("Factory.CreateEntity: def cannot be nil")
+		return nil, fmt.Errorf("Factory.CreateEntity: def is nil")
 	}
 	r := &Entity{
 		Factory:   T,
@@ -192,12 +191,12 @@ func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 
 func (T *Factory) CreateEntityWrapped(def *EntityDef) (any, error) {
 	if def == nil {
-		return nil, fmt.Errorf("Factory.CreateEntityWrapped: def cannot be nil")
+		return nil, fmt.Errorf("Factory.CreateEntityWrapped: def is nil")
 	}
 
 	r, err := T.CreateEntity(def)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Factory.CreateEntityWrapped: failed to create entity: %w", err)
 	}
 
 	if def.Wrap != nil {
@@ -212,12 +211,12 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 
 	ok, def := T.IsRef(Ref)
 	if !ok {
-		return nil, fmt.Errorf("factory.LoadEntry: invalid ref %s", Ref)
+		return nil, fmt.Errorf("Factory.LoadEntity: invalid ref %s", Ref)
 	}
 
 	tableName, err := def.SqlTableName()
 	if err != nil {
-		return nil, fmt.Errorf("Factory.LoadEntry: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
+		return nil, fmt.Errorf("Factory.LoadEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
 	}
 
 	dvcm := def.DataVersionCheckMode
@@ -273,25 +272,25 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 		}
 		def.selectStmt, err = T.DB.Prepare(sql)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Factory.LoadEntity: failed to prepare select statement: %w", err)
 		}
 	}
 	rows, err := def.selectStmt.Query(Ref)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Factory.LoadEntity: failed to query select statement: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Factory.LoadEntity: rows error: %w", err)
 		}
-		return nil, errors.New("factory.LoadEntry: entity not found in database")
+		return nil, fmt.Errorf("Factory.LoadEntity: entity not found in database")
 	}
 
 	err = rows.Scan(fp...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Factory.LoadEntity: failed to scan row: %w", err)
 	}
 	res.isNew = false
 	T.loadedEntities.Add(Ref, res)

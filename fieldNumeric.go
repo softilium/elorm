@@ -39,7 +39,7 @@ func (T *fieldValueNumeric) mask() string {
 
 func (T *fieldValueNumeric) SqlStringValue() (string, error) {
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	switch T.def.EntityDef.Factory.dbDialect {
 	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
