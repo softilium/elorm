@@ -25,27 +25,29 @@ func (T *fieldValueDateTime) resetOld() {
 }
 
 func (T *fieldValueDateTime) Set(newValue any) error {
-
 	timeValue, ok := newValue.(time.Time)
 	if !ok {
 		return fmt.Errorf("fieldValueDateTime.Set: expected time.Time value for field %s, got %T", T.def.Name, newValue)
 	}
-
 	T.isDirty = T.isDirty || timeValue.Compare(T.v) != 0
 	T.v = timeValue
 	return nil
 }
 
-func (T *fieldValueDateTime) SqlStringValue() (string, error) {
+func (T *fieldValueDateTime) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(time.Time)
+		if !ok {
+			return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: expected time.Time value for field %s, got %T", T.def.Name, v)
+		}
+	}
+
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
-	switch T.def.EntityDef.Factory.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
-		return fmt.Sprintf("'%s'", T.v.Format(time.DateTime)), nil
-	default:
-		return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
-	}
+	return fmt.Sprintf("'%s'", v2.Format(time.DateTime)), nil
 }
 
 func (T *fieldValueDateTime) AsString() string {

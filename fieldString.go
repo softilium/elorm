@@ -10,16 +10,20 @@ type fieldValueString struct {
 	old string
 }
 
-func (T *fieldValueString) SqlStringValue() (string, error) {
+func (T *fieldValueString) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(string)
+		if !ok {
+			return "", fmt.Errorf("fieldValueString.SqlStringValue: expected string value for field %s, got %T", T.def.Name, v)
+		}
+	}
+
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("fieldValueString.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
-	switch T.def.EntityDef.Factory.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
-		return fmt.Sprintf("'%s'", T.v), nil
-	default:
-		return "", fmt.Errorf("fieldValueString.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
-	}
+	return fmt.Sprintf("'%s'", v2), nil
 }
 
 func (T *fieldValueString) Set(newValue any) error {

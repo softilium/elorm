@@ -32,16 +32,20 @@ func (T *fieldValueInt) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueInt) SqlStringValue() (string, error) {
+func (T *fieldValueInt) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(int64)
+		if !ok {
+			return "", fmt.Errorf("fieldValueInt.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+		}
+	}
+
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("fieldValueInt.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
-	switch T.def.EntityDef.Factory.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
-		return fmt.Sprintf("%d", T.v), nil
-	default:
-		return "", fmt.Errorf("fieldValueInt.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
-	}
+	return fmt.Sprintf("%d", v2), nil
 }
 
 func (T *fieldValueInt) AsString() string {

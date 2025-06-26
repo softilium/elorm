@@ -37,16 +37,20 @@ func (T *fieldValueNumeric) mask() string {
 	return "%" + fmt.Sprintf("%d", T.def.Precision) + "." + fmt.Sprintf("%d", T.def.Scale) + "f"
 }
 
-func (T *fieldValueNumeric) SqlStringValue() (string, error) {
+func (T *fieldValueNumeric) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(float64)
+		if !ok {
+			return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: expected float64 value for field %s, got %T", T.def.Name, v)
+		}
+	}
+
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
-	switch T.def.EntityDef.Factory.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
-		return fmt.Sprintf(T.mask(), T.v), nil
-	default:
-		return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
-	}
+	return fmt.Sprintf(T.mask(), v2), nil
 }
 
 func (T *fieldValueNumeric) AsString() string {

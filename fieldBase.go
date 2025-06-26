@@ -1,9 +1,9 @@
 package elorm
 
 type IFieldValue interface {
-	Def() *fieldDef
+	Def() *FieldDef
 	Entity() *Entity
-	SqlStringValue() (string, error)
+	SqlStringValue(v ...any) (string, error)
 	Scan(v any) error
 	AsString() string
 	Set(newValue any) error
@@ -13,12 +13,12 @@ type IFieldValue interface {
 }
 
 type fieldValueBase struct {
-	def     *fieldDef
+	def     *FieldDef
 	entity  *Entity
 	isDirty bool
 }
 
-func (T *fieldValueBase) Def() *fieldDef {
+func (T *fieldValueBase) Def() *FieldDef {
 	return T.def
 }
 

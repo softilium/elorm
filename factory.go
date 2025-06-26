@@ -100,7 +100,7 @@ func (T *Factory) CreateEntityDef(ObjectName string, TableName string) (*EntityD
 		ObjectName:           ObjectName,
 		TableName:            TableName,
 		Factory:              T,
-		FieldDefs:            make([]*fieldDef, 0),
+		FieldDefs:            make([]*FieldDef, 0),
 		IndexDefs:            make([]*IndexDef, 0),
 		DataVersionCheckMode: DataVersionCheckDefault,
 	}

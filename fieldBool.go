@@ -32,18 +32,27 @@ func (T *fieldValueBool) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueBool) SqlStringValue() (string, error) {
+func (T *fieldValueBool) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(bool)
+		if !ok {
+			return "", fmt.Errorf("fieldValueBool.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+		}
+	}
+
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("fieldValueBool.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	switch T.def.EntityDef.Factory.dbDialect {
 	case DbDialectPostgres, DbDialectSQLite:
-		if T.v {
+		if v2 {
 			return "TRUE", nil
 		}
 		return "FALSE", nil
 	case DbDialectMSSQL, DbDialectMySQL:
-		if T.v {
+		if v2 {
 			return "1", nil
 		}
 		return "0", nil

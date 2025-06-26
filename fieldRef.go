@@ -25,16 +25,16 @@ func (T *FieldValueRef) Set(newValue any) error {
 		stringValue = v.RefString()
 	default:
 		if newValue != nil {
-			return fmt.Errorf("fieldValueRef.Set: expected string or entityRef pointer for field, got %T", newValue)
+			return fmt.Errorf("FieldValueRef.Set: expected string or entityRef pointer for field, got %T", newValue)
 		}
 	}
 
 	if T.factory == nil {
-		return fmt.Errorf("fieldValueRef.Set: missing factory")
+		return fmt.Errorf("FieldValueRef.Set: missing factory")
 	}
 	ok, deft := T.factory.IsRef(stringValue)
 	if !ok {
-		return fmt.Errorf("fieldValueRef.Set: invalid ref %s", stringValue)
+		return fmt.Errorf("FieldValueRef.Set: invalid ref %s", stringValue)
 	}
 
 	if T.def == nil {
@@ -42,7 +42,7 @@ func (T *FieldValueRef) Set(newValue any) error {
 	}
 
 	if T.def != nil && deft.ObjectName != T.def.EntityDef.ObjectName {
-		return fmt.Errorf("fieldValueRef.Set: ref %s does not match field type %s", deft.ObjectName, T.def.Name)
+		return fmt.Errorf("FieldValueRef.Set: ref %s does not match field type %s", deft.ObjectName, T.def.Name)
 	}
 
 	T.isDirty = T.isDirty || stringValue != T.v
@@ -54,7 +54,7 @@ func (T *FieldValueRef) Get() (any, error) {
 
 	r, err := T.factory.LoadEntityWrapped(T.v)
 	if err != nil {
-		return nil, fmt.Errorf("fieldValueRef.Get: failed to load entity: %w", err)
+		return nil, fmt.Errorf("FieldValueRef.Get: failed to load entity: %w", err)
 	}
 	return r, nil
 
@@ -64,7 +64,7 @@ func (T *FieldValueRef) GetOld() (any, error) {
 
 	r, err := T.factory.LoadEntityWrapped(T.old)
 	if err != nil {
-		return nil, fmt.Errorf("fieldValueRef.GetOld: failed to load entity: %w", err)
+		return nil, fmt.Errorf("FieldValueRef.GetOld: failed to load entity: %w", err)
 	}
 	return r, nil
 
@@ -74,19 +74,23 @@ func (T *FieldValueRef) resetOld() {
 	T.old = T.v
 }
 
-func (T *FieldValueRef) SqlStringValue() (string, error) {
-	if T.factory == nil {
-		return "", fmt.Errorf("fieldValueRef.SqlStringValue: missing factory")
-	}
-	switch T.factory.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
-		if T.v == "" {
-			return "NULL", nil
+func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
+	v2 := T.v
+	if len(v) == 1 {
+		ok := false
+		v2, ok = v[0].(string)
+		if !ok {
+			return "", fmt.Errorf("FieldValueRef.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
 		}
-		return fmt.Sprintf("'%s'", T.v), nil
-	default:
-		return "", fmt.Errorf("fieldValueRef.SqlStringValue: unknown database type %d for field %s", T.factory.dbDialect, T.def.Name)
 	}
+
+	if T.factory == nil {
+		return "", fmt.Errorf("FieldValueRef.SqlStringValue: missing factory")
+	}
+	if v2 == "" {
+		return "NULL", nil
+	}
+	return fmt.Sprintf("'%s'", v2), nil
 }
 
 func (T *FieldValueRef) AsString() string {
@@ -108,21 +112,21 @@ func (T *FieldValueRef) Scan(v any) error {
 	case []uint8: //MySql
 		asStr = string(v)
 	default:
-		return fmt.Errorf("fieldValueRef.Scan: expected string or []uint8 for field %s, got %T", T.def.Name, v)
+		return fmt.Errorf("FieldValueRef.Scan: expected string or []uint8 for field %s, got %T", T.def.Name, v)
 	}
 
 	if T.def != nil {
 		ok, defTypeFromID := T.def.EntityDef.Factory.IsRef(asStr)
 		if !ok {
-			return fmt.Errorf("fieldValueRef.Scan: invalid ref %s for field %s", asStr, T.def.Name)
+			return fmt.Errorf("FieldValueRef.Scan: invalid ref %s for field %s", asStr, T.def.Name)
 		}
 		if defTypeFromID.ObjectName != T.def.EntityDef.ObjectName {
-			return fmt.Errorf("fieldValueRef.Scan: ref %s does not match field type %s", defTypeFromID.ObjectName, T.def.Name)
+			return fmt.Errorf("FieldValueRef.Scan: ref %s does not match field type %s", defTypeFromID.ObjectName, T.def.Name)
 		}
 	} else {
 		ok, defTypeFromID := T.factory.IsRef(asStr)
 		if !ok {
-			return fmt.Errorf("fieldValueRef.Scan: invalid ref %s", asStr)
+			return fmt.Errorf("FieldValueRef.Scan: invalid ref %s", asStr)
 		}
 		T.def = defTypeFromID.RefField
 	}
