@@ -4,25 +4,25 @@ import (
 	"fmt"
 )
 
-type fieldValueInt struct {
+type FieldValueInt struct {
 	fieldValueBase
 	v   int64
 	old int64
 }
 
-func (T *fieldValueInt) Get() (any, error) {
+func (T *FieldValueInt) Get() (any, error) {
 	return T.v, nil
 }
 
-func (T *fieldValueInt) GetOld() (any, error) {
+func (T *FieldValueInt) GetOld() (any, error) {
 	return T.old, nil
 }
 
-func (T *fieldValueInt) resetOld() {
+func (T *FieldValueInt) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueInt) Set(newValue any) error {
+func (T *FieldValueInt) Set(newValue any) error {
 	intValue, ok := newValue.(int64)
 	if !ok {
 		return fmt.Errorf("fieldValueInt.Set: expected int64 value for field %s, got %T", T.def.Name, newValue)
@@ -32,7 +32,7 @@ func (T *fieldValueInt) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueInt) SqlStringValue(v ...any) (string, error) {
+func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -48,11 +48,11 @@ func (T *fieldValueInt) SqlStringValue(v ...any) (string, error) {
 	return fmt.Sprintf("%d", v2), nil
 }
 
-func (T *fieldValueInt) AsString() string {
+func (T *FieldValueInt) AsString() string {
 	return fmt.Sprintf("%d", T.v)
 }
 
-func (T *fieldValueInt) Scan(v any) error {
+func (T *FieldValueInt) Scan(v any) error {
 	if v == nil {
 		return fmt.Errorf("fieldValueInt.Scan: nil value for field %s", T.def.Name)
 	}

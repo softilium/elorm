@@ -4,13 +4,13 @@ import (
 	"fmt"
 )
 
-type fieldValueString struct {
+type FieldValueString struct {
 	fieldValueBase
 	v   string
 	old string
 }
 
-func (T *fieldValueString) SqlStringValue(v ...any) (string, error) {
+func (T *FieldValueString) SqlStringValue(v ...any) (string, error) {
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -26,7 +26,7 @@ func (T *fieldValueString) SqlStringValue(v ...any) (string, error) {
 	return fmt.Sprintf("'%s'", v2), nil
 }
 
-func (T *fieldValueString) Set(newValue any) error {
+func (T *FieldValueString) Set(newValue any) error {
 	stringValue, ok := newValue.(string)
 	if !ok {
 		return fmt.Errorf("fieldValueString.Set: expected string value for field %s, got %T", T.def.Name, newValue)
@@ -36,23 +36,23 @@ func (T *fieldValueString) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueString) Get() (any, error) {
+func (T *FieldValueString) Get() (any, error) {
 	return T.v, nil
 }
 
-func (T *fieldValueString) GetOld() (any, error) {
+func (T *FieldValueString) GetOld() (any, error) {
 	return T.old, nil
 }
 
-func (T *fieldValueString) resetOld() {
+func (T *FieldValueString) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueString) AsString() string {
+func (T *FieldValueString) AsString() string {
 	return T.v
 }
 
-func (T *fieldValueString) Scan(v any) error {
+func (T *FieldValueString) Scan(v any) error {
 	if v == nil {
 		return fmt.Errorf("fieldValueString.Scan: nil value for field %s", T.def.Name)
 	}

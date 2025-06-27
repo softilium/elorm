@@ -4,13 +4,13 @@ import (
 	"fmt"
 )
 
-type fieldValueBool struct {
+type FieldValueBool struct {
 	fieldValueBase
 	v   bool
 	old bool
 }
 
-func (T *fieldValueBool) Set(newValue any) error {
+func (T *FieldValueBool) Set(newValue any) error {
 	boolValue, ok := newValue.(bool)
 	if !ok {
 		return fmt.Errorf("fieldValueBool.Set: expected bool value for field %s, got %T", T.def.Name, newValue)
@@ -20,19 +20,19 @@ func (T *fieldValueBool) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueBool) Get() (any, error) {
+func (T *FieldValueBool) Get() (any, error) {
 	return T.v, nil
 }
 
-func (T *fieldValueBool) GetOld() (any, error) {
+func (T *FieldValueBool) GetOld() (any, error) {
 	return T.old, nil
 }
 
-func (T *fieldValueBool) resetOld() {
+func (T *FieldValueBool) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueBool) SqlStringValue(v ...any) (string, error) {
+func (T *FieldValueBool) SqlStringValue(v ...any) (string, error) {
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -61,14 +61,14 @@ func (T *fieldValueBool) SqlStringValue(v ...any) (string, error) {
 	}
 }
 
-func (T *fieldValueBool) AsString() string {
+func (T *FieldValueBool) AsString() string {
 	if T.v {
 		return "TRUE"
 	}
 	return "FALSE"
 }
 
-func (T *fieldValueBool) Scan(v any) error {
+func (T *FieldValueBool) Scan(v any) error {
 	if v == nil {
 		return fmt.Errorf("fieldValueBool.Scan: nil value for field %s", T.def.Name)
 	}

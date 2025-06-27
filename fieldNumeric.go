@@ -5,25 +5,25 @@ import (
 	"strconv"
 )
 
-type fieldValueNumeric struct {
+type FieldValueNumeric struct {
 	fieldValueBase
 	v   float64
 	old float64
 }
 
-func (T *fieldValueNumeric) Get() (any, error) {
+func (T *FieldValueNumeric) Get() (any, error) {
 	return T.v, nil
 }
 
-func (T *fieldValueNumeric) GetOld() (any, error) {
+func (T *FieldValueNumeric) GetOld() (any, error) {
 	return T.old, nil
 }
 
-func (T *fieldValueNumeric) resetOld() {
+func (T *FieldValueNumeric) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueNumeric) Set(newValue any) error {
+func (T *FieldValueNumeric) Set(newValue any) error {
 	floatValue, ok := newValue.(float64)
 	if !ok {
 		return fmt.Errorf("fieldValueNumeric.Set: expected float64 value for field %s, got %T", T.def.Name, newValue)
@@ -33,11 +33,11 @@ func (T *fieldValueNumeric) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueNumeric) mask() string {
+func (T *FieldValueNumeric) mask() string {
 	return "%" + fmt.Sprintf("%d", T.def.Precision) + "." + fmt.Sprintf("%d", T.def.Scale) + "f"
 }
 
-func (T *fieldValueNumeric) SqlStringValue(v ...any) (string, error) {
+func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -53,11 +53,11 @@ func (T *fieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 	return fmt.Sprintf(T.mask(), v2), nil
 }
 
-func (T *fieldValueNumeric) AsString() string {
+func (T *FieldValueNumeric) AsString() string {
 	return fmt.Sprintf(T.mask(), T.v)
 }
 
-func (T *fieldValueNumeric) Scan(v any) error {
+func (T *FieldValueNumeric) Scan(v any) error {
 	if v == nil {
 		return fmt.Errorf("fieldValueNumeric.Scan: nil value for field %s", T.def.Name)
 	}

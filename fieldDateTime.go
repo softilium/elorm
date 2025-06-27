@@ -6,25 +6,25 @@ import (
 )
 
 // This field type stores date + time value, without timezone.
-type fieldValueDateTime struct {
+type FieldValueDateTime struct {
 	fieldValueBase
 	v   time.Time
 	old time.Time
 }
 
-func (T *fieldValueDateTime) Get() (any, error) {
+func (T *FieldValueDateTime) Get() (any, error) {
 	return T.v, nil
 }
 
-func (T *fieldValueDateTime) GetOld() (any, error) {
+func (T *FieldValueDateTime) GetOld() (any, error) {
 	return T.old, nil
 }
 
-func (T *fieldValueDateTime) resetOld() {
+func (T *FieldValueDateTime) resetOld() {
 	T.old = T.v
 }
 
-func (T *fieldValueDateTime) Set(newValue any) error {
+func (T *FieldValueDateTime) Set(newValue any) error {
 	timeValue, ok := newValue.(time.Time)
 	if !ok {
 		return fmt.Errorf("fieldValueDateTime.Set: expected time.Time value for field %s, got %T", T.def.Name, newValue)
@@ -34,7 +34,7 @@ func (T *fieldValueDateTime) Set(newValue any) error {
 	return nil
 }
 
-func (T *fieldValueDateTime) SqlStringValue(v ...any) (string, error) {
+func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -50,11 +50,11 @@ func (T *fieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 	return fmt.Sprintf("'%s'", v2.Format(time.DateTime)), nil
 }
 
-func (T *fieldValueDateTime) AsString() string {
+func (T *FieldValueDateTime) AsString() string {
 	return T.v.Format(time.RFC3339)
 }
 
-func (T *fieldValueDateTime) Scan(v any) error {
+func (T *FieldValueDateTime) Scan(v any) error {
 	if v == nil {
 		return fmt.Errorf("fieldValueDateTime.Scan: nil value for field %s", T.def.Name)
 	}

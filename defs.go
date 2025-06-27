@@ -52,17 +52,17 @@ type FieldDef struct {
 func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 	switch T.Type {
 	case fieldDefTypeString:
-		x := &fieldValueString{v: T.DefValue.(string)}
+		x := &FieldValueString{v: T.DefValue.(string)}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case fieldDefTypeInt:
-		x := &fieldValueInt{v: T.DefValue.(int64)}
+		x := &FieldValueInt{v: T.DefValue.(int64)}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case fieldDefTypeBool:
-		x := &fieldValueBool{v: T.DefValue.(bool)}
+		x := &FieldValueBool{v: T.DefValue.(bool)}
 		x.entity = entity
 		x.def = T
 		return x, nil
@@ -72,12 +72,12 @@ func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 		x.def = T
 		return x, nil
 	case fieldDefNumeric:
-		x := &fieldValueNumeric{v: T.DefValue.(float64)}
+		x := &FieldValueNumeric{v: T.DefValue.(float64)}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case fieldDefDateTime:
-		x := &fieldValueDateTime{}
+		x := &FieldValueDateTime{}
 		x.entity = entity
 		x.def = T
 		return x, nil
