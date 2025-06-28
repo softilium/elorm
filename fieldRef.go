@@ -16,7 +16,6 @@ func (T *FieldValueRef) SetFactory(newValue *Factory) {
 }
 
 func (T *FieldValueRef) Set(newValue any) error {
-
 	stringValue := ""
 	switch v := newValue.(type) {
 	case string:
@@ -25,7 +24,7 @@ func (T *FieldValueRef) Set(newValue any) error {
 		stringValue = v.RefString()
 	default:
 		if newValue != nil {
-			return fmt.Errorf("FieldValueRef.Set: expected string or entityRef pointer for field, got %T", newValue)
+			return fmt.Errorf("FieldValueRef.Set: type assertion failed: expected string or entityRef pointer for field, got %T", newValue)
 		}
 	}
 
@@ -51,23 +50,19 @@ func (T *FieldValueRef) Set(newValue any) error {
 }
 
 func (T *FieldValueRef) Get() (any, error) {
-
 	r, err := T.factory.LoadEntityWrapped(T.v)
 	if err != nil {
 		return nil, fmt.Errorf("FieldValueRef.Get: failed to load entity: %w", err)
 	}
 	return r, nil
-
 }
 
 func (T *FieldValueRef) GetOld() (any, error) {
-
 	r, err := T.factory.LoadEntityWrapped(T.old)
 	if err != nil {
 		return nil, fmt.Errorf("FieldValueRef.GetOld: failed to load entity: %w", err)
 	}
 	return r, nil
-
 }
 
 func (T *FieldValueRef) resetOld() {
@@ -80,7 +75,7 @@ func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(string)
 		if !ok {
-			return "", fmt.Errorf("FieldValueRef.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueRef.SqlStringValue: type assertion failed: expected int64 value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
@@ -112,7 +107,7 @@ func (T *FieldValueRef) Scan(v any) error {
 	case []uint8: //MySql
 		asStr = string(v)
 	default:
-		return fmt.Errorf("FieldValueRef.Scan: expected string or []uint8 for field %s, got %T", T.def.Name, v)
+		return fmt.Errorf("FieldValueRef.Scan: type assertion failed: expected string or []uint8 for field %s, got %T", T.def.Name, v)
 	}
 
 	if T.def != nil {

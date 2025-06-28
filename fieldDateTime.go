@@ -12,26 +12,21 @@ type FieldValueDateTime struct {
 	old time.Time
 }
 
-func (T *FieldValueDateTime) Get() (any, error) {
-	return T.v, nil
+func (T *FieldValueDateTime) Set(newValue time.Time) {
+	T.isDirty = T.isDirty || newValue.Compare(T.v) != 0
+	T.v = newValue
 }
 
-func (T *FieldValueDateTime) GetOld() (any, error) {
-	return T.old, nil
+func (T *FieldValueDateTime) Get() time.Time {
+	return T.v
+}
+
+func (T *FieldValueDateTime) GetOld() time.Time {
+	return T.old
 }
 
 func (T *FieldValueDateTime) resetOld() {
 	T.old = T.v
-}
-
-func (T *FieldValueDateTime) Set(newValue any) error {
-	timeValue, ok := newValue.(time.Time)
-	if !ok {
-		return fmt.Errorf("fieldValueDateTime.Set: expected time.Time value for field %s, got %T", T.def.Name, newValue)
-	}
-	T.isDirty = T.isDirty || timeValue.Compare(T.v) != 0
-	T.v = timeValue
-	return nil
 }
 
 func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {

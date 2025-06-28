@@ -10,26 +10,21 @@ type FieldValueInt struct {
 	old int64
 }
 
-func (T *FieldValueInt) Get() (any, error) {
-	return T.v, nil
+func (T *FieldValueInt) Set(newValue int64) {
+	T.isDirty = T.isDirty || newValue != T.v
+	T.v = newValue
 }
 
-func (T *FieldValueInt) GetOld() (any, error) {
-	return T.old, nil
+func (T *FieldValueInt) Get() int64 {
+	return T.v
+}
+
+func (T *FieldValueInt) GetOld() int64 {
+	return T.old
 }
 
 func (T *FieldValueInt) resetOld() {
 	T.old = T.v
-}
-
-func (T *FieldValueInt) Set(newValue any) error {
-	intValue, ok := newValue.(int64)
-	if !ok {
-		return fmt.Errorf("fieldValueInt.Set: expected int64 value for field %s, got %T", T.def.Name, newValue)
-	}
-	T.isDirty = T.isDirty || intValue != T.v
-	T.v = intValue
-	return nil
 }
 
 func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {

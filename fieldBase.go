@@ -6,9 +6,6 @@ type IFieldValue interface {
 	SqlStringValue(v ...any) (string, error)
 	Scan(v any) error
 	AsString() string
-	Set(newValue any) error
-	Get() (any, error)
-	GetOld() (any, error)
 	resetOld()
 }
 

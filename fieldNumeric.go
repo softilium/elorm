@@ -11,30 +11,25 @@ type FieldValueNumeric struct {
 	old float64
 }
 
-func (T *FieldValueNumeric) Get() (any, error) {
-	return T.v, nil
+func (T *FieldValueNumeric) Set(newValue float64) {
+	T.isDirty = T.isDirty || newValue != T.v
+	T.v = newValue
 }
 
-func (T *FieldValueNumeric) GetOld() (any, error) {
-	return T.old, nil
+func (T *FieldValueNumeric) Get() float64 {
+	return T.v
+}
+
+func (T *FieldValueNumeric) GetOld() float64 {
+	return T.old
 }
 
 func (T *FieldValueNumeric) resetOld() {
 	T.old = T.v
 }
 
-func (T *FieldValueNumeric) Set(newValue any) error {
-	floatValue, ok := newValue.(float64)
-	if !ok {
-		return fmt.Errorf("fieldValueNumeric.Set: expected float64 value for field %s, got %T", T.def.Name, newValue)
-	}
-	T.isDirty = T.isDirty || floatValue != T.v
-	T.v = floatValue
-	return nil
-}
-
 func (T *FieldValueNumeric) mask() string {
-	return "%" + fmt.Sprintf("%d", T.def.Precision) + "." + fmt.Sprintf("%d", T.def.Scale) + "f"
+	return fmt.Sprintf("%%%d.%df", T.def.Precision, T.def.Scale)
 }
 
 func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
@@ -43,12 +38,12 @@ func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(float64)
 		if !ok {
-			return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: expected float64 value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueNumeric.SqlStringValue: type assertion failed: expected float64 value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("fieldValueNumeric.SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("FieldValueNumeric.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	return fmt.Sprintf(T.mask(), v2), nil
 }
@@ -59,7 +54,7 @@ func (T *FieldValueNumeric) AsString() string {
 
 func (T *FieldValueNumeric) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("fieldValueNumeric.Scan: nil value for field %s", T.def.Name)
+		return fmt.Errorf("FieldValueNumeric.Scan: nil value for field %s", T.def.Name)
 	}
 	switch vtyped := v.(type) {
 	case float64:
@@ -67,20 +62,20 @@ func (T *FieldValueNumeric) Scan(v any) error {
 	case string:
 		vt, err := strconv.ParseFloat(vtyped, 64)
 		if err != nil {
-			return fmt.Errorf("fieldValueNumeric.Scan: cannot parse string '%s' as float64 for field %s", vtyped, T.def.Name)
+			return fmt.Errorf("FieldValueNumeric.Scan: cannot parse string '%s' as float64 for field %s", vtyped, T.def.Name)
 		}
 		T.v = vt
 	case []uint8:
 		vts2 := string(vtyped)
 		vt, err := strconv.ParseFloat(vts2, 64)
 		if err != nil {
-			return fmt.Errorf("fieldValueNumeric.Scan: cannot parse []uint8 '%s' as float64 for field %s", vts2, T.def.Name)
+			return fmt.Errorf("FieldValueNumeric.Scan: cannot parse []uint8 '%s' as float64 for field %s", vts2, T.def.Name)
 		}
 		T.v = vt
 	case int64:
 		T.v = float64(vtyped)
 	default:
-		return fmt.Errorf("fieldValueNumeric.Scan: unsupported type %T for field %s", v, T.def.Name)
+		return fmt.Errorf("FieldValueNumeric.Scan: unsupported type %T for field %s", v, T.def.Name)
 	}
 	T.isDirty = false
 	T.old = T.v

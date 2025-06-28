@@ -166,17 +166,15 @@ func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 		}
 		r.Values[fd.Name] = fv
 	}
-	r.ref = r.Values[RefFieldName]
+	r.ref = r.Values[RefFieldName].(*FieldValueRef)
 	if err := r.ref.Set(T.NewRef(def)); err != nil {
 		return nil, fmt.Errorf("Factory.CreateEntity: error setting Ref: %w", err)
 	}
 
-	r.isDeleted = r.Values[IsDeletedFieldName]
-	if err := r.isDeleted.Set(false); err != nil {
-		return nil, fmt.Errorf("Factory.CreateEntity: error setting IsDeleted: %w", err)
-	}
+	r.isDeleted = r.Values[IsDeletedFieldName].(*FieldValueBool)
+	r.isDeleted.Set(false)
 
-	r.dataVersion = r.Values[DataVersionFieldName]
+	r.dataVersion = r.Values[DataVersionFieldName].(*FieldValueString)
 
 	T.loadedEntities.Add(r.RefString(), r)
 

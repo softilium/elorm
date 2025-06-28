@@ -1,6 +1,7 @@
 package elorm
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -23,7 +24,7 @@ func NewRef() string {
 	}
 	res := strconv.FormatInt(lastRefValue, 36)
 	for len(res) < refStringLength {
-		res = "0" + res
+		res = fmt.Sprintf("0%s", res)
 	}
 	return res
 }

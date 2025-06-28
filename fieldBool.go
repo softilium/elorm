@@ -10,22 +10,17 @@ type FieldValueBool struct {
 	old bool
 }
 
-func (T *FieldValueBool) Set(newValue any) error {
-	boolValue, ok := newValue.(bool)
-	if !ok {
-		return fmt.Errorf("fieldValueBool.Set: expected bool value for field %s, got %T", T.def.Name, newValue)
-	}
-	T.isDirty = T.isDirty || boolValue != T.v
-	T.v = boolValue
-	return nil
+func (T *FieldValueBool) Set(newValue bool) {
+	T.isDirty = T.isDirty || newValue != T.v
+	T.v = newValue
 }
 
-func (T *FieldValueBool) Get() (any, error) {
-	return T.v, nil
+func (T *FieldValueBool) Get() bool {
+	return T.v
 }
 
-func (T *FieldValueBool) GetOld() (any, error) {
-	return T.old, nil
+func (T *FieldValueBool) GetOld() bool {
+	return T.old
 }
 
 func (T *FieldValueBool) resetOld() {

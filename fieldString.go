@@ -16,32 +16,27 @@ func (T *FieldValueString) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(string)
 		if !ok {
-			return "", fmt.Errorf("fieldValueString.SqlStringValue: expected string value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueString.SqlStringValue: type assertion failed: expected string value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("fieldValueString.SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("FieldValueString.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	return fmt.Sprintf("'%s'", v2), nil
 }
 
-func (T *FieldValueString) Set(newValue any) error {
-	stringValue, ok := newValue.(string)
-	if !ok {
-		return fmt.Errorf("fieldValueString.Set: expected string value for field %s, got %T", T.def.Name, newValue)
-	}
-	T.isDirty = T.isDirty || stringValue != T.v
-	T.v = stringValue
-	return nil
+func (T *FieldValueString) Set(newValue string) {
+	T.isDirty = T.isDirty || newValue != T.v
+	T.v = newValue
 }
 
-func (T *FieldValueString) Get() (any, error) {
-	return T.v, nil
+func (T *FieldValueString) Get() string {
+	return T.v
 }
 
-func (T *FieldValueString) GetOld() (any, error) {
-	return T.old, nil
+func (T *FieldValueString) GetOld() string {
+	return T.old
 }
 
 func (T *FieldValueString) resetOld() {
@@ -54,16 +49,15 @@ func (T *FieldValueString) AsString() string {
 
 func (T *FieldValueString) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("fieldValueString.Scan: nil value for field %s", T.def.Name)
+		return fmt.Errorf("FieldValueString.Scan: nil value for field %s", T.def.Name)
 	}
 	switch vtyped := v.(type) {
 	case string:
 		T.v = vtyped
-
 	case []uint8:
 		T.v = string(vtyped)
 	default:
-		return fmt.Errorf("fieldValueString.Scan: expected string or []uint8 for field %s, got %T", T.def.Name, v)
+		return fmt.Errorf("FieldValueString.Scan: type assertion failed: expected string or []uint8 for field %s, got %T", T.def.Name, v)
 	}
 
 	T.isDirty = false

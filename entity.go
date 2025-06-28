@@ -15,9 +15,9 @@ type Entity struct {
 	entityDef *EntityDef
 	Values    map[string]IFieldValue
 
-	ref         IFieldValue
-	isDeleted   IFieldValue
-	dataVersion IFieldValue
+	ref         *FieldValueRef
+	isDeleted   *FieldValueBool
+	dataVersion *FieldValueString
 
 	isNew bool
 }
@@ -31,8 +31,7 @@ func (T *Entity) IsNew() bool {
 }
 
 func (T *Entity) IsDeleted() bool {
-	r, _ := T.isDeleted.Get() // fieldBool.Get cannot return an error
-	return r.(bool)
+	return T.isDeleted.Get()
 }
 
 func (T *Entity) SetIsDeleted(newValue bool) {
@@ -40,11 +39,7 @@ func (T *Entity) SetIsDeleted(newValue bool) {
 }
 
 func (T *Entity) DataVersion() string {
-	r, err := T.dataVersion.Get()
-	if err != nil {
-		return "ERR"
-	}
-	return r.(string)
+	return T.dataVersion.Get()
 }
 
 func (T *Entity) Save() error {
@@ -72,13 +67,15 @@ func (T *Entity) Save() error {
 
 	fieldCount := len(T.entityDef.FieldDefs)
 	fn := make([]string, 0, fieldCount)
-
+	
+	// Pre-compute all column names outside the loop for better performance
+	columnNames := make(map[string]string, fieldCount)
 	for _, v := range T.entityDef.FieldDefs {
-
 		coln, err := v.SqlColumnName()
 		if err != nil {
 			return fmt.Errorf("Entity.Save: failed to get SQL column name for field %s: %w", v.Name, err)
 		}
+		columnNames[v.Name] = coln
 		fn = append(fn, coln)
 	}
 
@@ -91,9 +88,7 @@ func (T *Entity) Save() error {
 	if T.isNew {
 
 		if dvCheck == DataVersionCheckAlways {
-			if err := T.dataVersion.Set(NewRef()); err != nil {
-				return fmt.Errorf("Entity.Save: error setting new DataVersion: %w", err)
-			}
+			T.dataVersion.Set(NewRef())
 		}
 
 		fv := make([]string, 0, fieldCount)
@@ -115,10 +110,7 @@ func (T *Entity) Save() error {
 	} else {
 		setlist := make([]string, 0, fieldCount)
 		for _, v := range T.entityDef.FieldDefs {
-			coln, err := v.SqlColumnName()
-			if err != nil {
-				return fmt.Errorf("Entity.Save: failed to get SQL column name for field %s: %w", v.Name, err)
-			}
+			coln := columnNames[v.Name] // Use pre-computed column name
 
 			sv, err := T.Values[v.Name].SqlStringValue()
 			if err != nil {
@@ -129,9 +121,7 @@ func (T *Entity) Save() error {
 
 		if dvCheck == DataVersionCheckAlways {
 			oldDV := T.DataVersion()
-			if err := T.dataVersion.Set(NewRef()); err != nil {
-				return fmt.Errorf("Entity.Save: error setting new DataVersion: %w", err)
-			}
+			T.dataVersion.Set(NewRef())
 
 			refsv, err := T.ref.SqlStringValue()
 			if err != nil {
@@ -142,22 +132,16 @@ func (T *Entity) Save() error {
 				tableName, strings.Join(setlist, ", "), refsv, oldDV)
 			res, err := tx.Exec(sql)
 			if err != nil {
-				if err2 := T.dataVersion.Set(oldDV); err2 != nil {
-					return fmt.Errorf("Entity.Save: error restoring old DataVersion after update error: %v, original error: %w", err2, err)
-				}
+				T.dataVersion.Set(oldDV)
 				return fmt.Errorf("Entity.Save: failed to update: %w", err)
 			}
 			rowsAffected, err := res.RowsAffected()
 			if err != nil {
-				if err2 := T.dataVersion.Set(oldDV); err2 != nil {
-					return fmt.Errorf("Entity.Save: error restoring old DataVersion after RowsAffected error: %v, original error: %w", err2, err)
-				}
+				T.dataVersion.Set(oldDV)
 				return fmt.Errorf("Entity.Save: failed to get rows affected: %w", err)
 			}
 			if rowsAffected != 1 {
-				if err2 := T.dataVersion.Set(oldDV); err2 != nil {
-					return fmt.Errorf("Entity.Save: error restoring old DataVersion after update conflict: %v", err2)
-				}
+				T.dataVersion.Set(oldDV)
 				return fmt.Errorf("Entity.Save: update failed, entity %s was changed by another user", T.RefString())
 			}
 
