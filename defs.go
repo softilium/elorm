@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const (
@@ -67,7 +68,7 @@ func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 		x.def = T
 		return x, nil
 	case fieldDefTypeRef:
-		x := &FieldValueRef{factory: T.EntityDef.Factory}
+		x := &FieldValueRef{factory: T.EntityDef.Factory, v: T.DefValue.(string)}
 		x.entity = entity
 		x.def = T
 		return x, nil
@@ -78,6 +79,10 @@ func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 		return x, nil
 	case fieldDefTypeDateTime:
 		x := &FieldValueDateTime{}
+		tv, ok := T.DefValue.(time.Time)
+		if ok {
+			x.v = tv
+		}
 		x.entity = entity
 		x.def = T
 		return x, nil
