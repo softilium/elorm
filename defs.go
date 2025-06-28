@@ -68,7 +68,11 @@ func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 		x.def = T
 		return x, nil
 	case fieldDefTypeRef:
-		x := &FieldValueRef{factory: T.EntityDef.Factory, v: T.DefValue.(string)}
+		x := &FieldValueRef{factory: T.EntityDef.Factory}
+		vt, ok := T.DefValue.(string)
+		if ok {
+			x.v = vt
+		}
 		x.entity = entity
 		x.def = T
 		return x, nil
