@@ -7,11 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
-
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/microsoft/go-mssqldb"
-	_ "modernc.org/sqlite"
 )
 
 type Factory struct {
