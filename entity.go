@@ -1,8 +1,11 @@
 package elorm
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type IReferableEntity interface {
@@ -67,7 +70,7 @@ func (T *Entity) Save() error {
 
 	fieldCount := len(T.entityDef.FieldDefs)
 	fn := make([]string, 0, fieldCount)
-	
+
 	// Pre-compute all column names outside the loop for better performance
 	columnNames := make(map[string]string, fieldCount)
 	for _, v := range T.entityDef.FieldDefs {
@@ -108,6 +111,10 @@ func (T *Entity) Save() error {
 		}
 
 	} else {
+		refsv, err := T.ref.SqlStringValue()
+		if err != nil {
+			return fmt.Errorf("Entity.Save: failed to get SQL value for Ref field: %w", err)
+		}
 		setlist := make([]string, 0, fieldCount)
 		for _, v := range T.entityDef.FieldDefs {
 			coln := columnNames[v.Name] // Use pre-computed column name
@@ -122,11 +129,6 @@ func (T *Entity) Save() error {
 		if dvCheck == DataVersionCheckAlways {
 			oldDV := T.DataVersion()
 			T.dataVersion.Set(NewRef())
-
-			refsv, err := T.ref.SqlStringValue()
-			if err != nil {
-				return fmt.Errorf("Entity.Save: failed to get SQL value for Ref field: %w", err)
-			}
 
 			sql := fmt.Sprintf(`update %s set %s where ref=%s and dataversion='%s'`,
 				tableName, strings.Join(setlist, ", "), refsv, oldDV)
@@ -148,7 +150,7 @@ func (T *Entity) Save() error {
 		} else {
 
 			sql := fmt.Sprintf(`update %s set %s where ref=%s`,
-				tableName, strings.Join(setlist, ", "), T.RefString())
+				tableName, strings.Join(setlist, ", "), refsv)
 			_, err = tx.Exec(sql)
 			if err != nil {
 				return fmt.Errorf("Entity.Save: failed to update: %w", err)
@@ -172,6 +174,86 @@ func (T *Entity) Save() error {
 			return fmt.Errorf("Entity.Save: afterSaveHandler failed: %w", err)
 		}
 	}
+
+	return nil
+}
+
+func (T *Entity) MarshalJSON() ([]byte, error) {
+	vm := make(map[string]any, len(T.Values))
+	for _, v := range T.Values {
+		vm[v.Def().Name] = v.AsString()
+	}
+	return json.Marshal(vm)
+}
+
+func (T *Entity) UnmarshalJSON(b []byte) error {
+
+	vm := make(map[string]any, len(T.Values))
+
+	err := json.Unmarshal(b, &vm)
+	if err != nil {
+		return fmt.Errorf("Entity.UnmarshalJSON: failed to unmarshal JSON: %w", err)
+	}
+	for _, v := range T.Values {
+		if val, ok := vm[v.Def().Name]; ok {
+			switch v.Def().Type {
+			case fieldDefTypeString:
+				v.(*FieldValueString).Set(val.(string))
+			case fieldDefTypeInt:
+				switch val.(type) {
+				case int:
+					v.(*FieldValueInt).Set(int64(val.(int)))
+				case int64:
+					v.(*FieldValueInt).Set(val.(int64))
+				case string:
+					valInt, err := strconv.ParseInt(strings.TrimSpace(val.(string)), 10, 64)
+					if err != nil {
+						return fmt.Errorf("Entity.LoadFromJSON: failed to parse integer value for field %s: %w", v.Def().Name, err)
+					}
+					v.(*FieldValueInt).Set(valInt)
+				default:
+					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for integer field %s: %T", v.Def().Name, val)
+				}
+			case fieldDefTypeBool:
+				switch val.(type) {
+				case bool:
+					v.(*FieldValueBool).Set(val.(bool))
+				case string:
+					asStr := strings.ToLower(val.(string))
+					v.(*FieldValueBool).Set(asStr == "true" || asStr == "1" || asStr == "yes" || asStr == "on")
+				default:
+					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for boolean field %s: %T", v.Def().Name, val)
+				}
+			case fieldDefTypeRef:
+				v.(*FieldValueRef).Set(val.(string))
+			case fieldDefTypeDateTime:
+				strVal := strings.TrimSpace(val.(string))
+				tv, err := time.Parse(time.RFC3339, strVal)
+				if err != nil {
+					return fmt.Errorf("Entity.LoadFromJSON: failed to parse date time: %w", err)
+				}
+				v.(*FieldValueDateTime).Set(tv)
+			case fieldDefTypeNumeric:
+				switch val.(type) {
+				case float32:
+					v.(*FieldValueNumeric).Set(float64(val.(float32)))
+				case float64:
+					v.(*FieldValueNumeric).Set(val.(float64))
+				case string:
+					valFloat, err := strconv.ParseFloat(strings.TrimSpace(val.(string)), 64)
+					if err != nil {
+						return fmt.Errorf("Entity.LoadFromJSON: failed to parse numeric value for field %s: %w", v.Def().Name, err)
+					}
+					v.(*FieldValueNumeric).Set(valFloat)
+				default:
+					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for numeric field %s: %T", v.Def().Name, val)
+				}
+			}
+		}
+	}
+
+	existsCopy, _ := T.Factory.LoadEntity(T.RefString())
+	T.isNew = existsCopy == nil
 
 	return nil
 }
