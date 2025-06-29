@@ -45,10 +45,10 @@ Elorm implements set of ideas from my business application engineer experience w
 	- Having sequential values (important for primary key indexes performance for most databases)
 	- Having a global entity cache (Ref has enough info to load the entity from the database)
 	- Ability to use any SQL statements with complex column transformations, table joins, etc. We can determine and load data as entities from result rows based on ref information.
+- Entities support JSON marshalling and unmarshalling
 - Entities can be retrieved using standard database/SQL queries. Elorm implements the database/sql Scanner interface.
 - Fields store old values alongside the current ones. This is useful when you need to compare values: old and new.
-- DataVersion checking prevents changes from concurrent users and can detect and show conflicting changes. Using 
-DataVersion is optional at the entity definition level. 
+- DataVersion checking prevents changes from concurrent users and can detect and show conflicting changes. Using DataVersion is optional at the entity definition level. 
 
 ### Elorm-gen
 
