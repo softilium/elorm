@@ -146,7 +146,12 @@ func (T *Filter) renderWhereClause() string {
 	return ""
 }
 
-func (T *EntityDef) SelectEntities(filters []*Filter) ([]*Entity, error) {
+type SortItem struct {
+	Field *FieldDef
+	Asc   bool
+}
+
+func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem) ([]*Entity, error) {
 
 	fnames := make([]string, 0, len(T.FieldDefs))
 
@@ -184,6 +189,26 @@ func (T *EntityDef) SelectEntities(filters []*Filter) ([]*Entity, error) {
 			}
 			query += f.renderWhereClause()
 		}
+	}
+
+	if len(sorts) > 0 {
+		query += " order by "
+		sortClauses := make([]string, 0, len(sorts))
+		for _, s := range sorts {
+			if s.Field == nil {
+				continue
+			}
+			coln, err := s.Field.SqlColumnName()
+			if err != nil {
+				return nil, fmt.Errorf("EntityDef.SelectEntities: failed to get SQL column name for field %s: %w", s.Field.Name, err)
+			}
+			if s.Asc {
+				sortClauses = append(sortClauses, fmt.Sprintf("%s asc", coln))
+			} else {
+				sortClauses = append(sortClauses, fmt.Sprintf("%s desc", coln))
+			}
+		}
+		query += strings.Join(sortClauses, ", ")
 	}
 
 	result := make([]*Entity, 0)

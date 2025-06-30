@@ -3,6 +3,7 @@ package elorm
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type FieldValueNumeric struct {
@@ -45,11 +46,11 @@ func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("FieldValueNumeric.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
-	return fmt.Sprintf(T.mask(), v2), nil
+	return strings.TrimSpace(fmt.Sprintf(T.mask(), v2)), nil
 }
 
 func (T *FieldValueNumeric) AsString() string {
-	return fmt.Sprintf(T.mask(), T.v)
+	return strings.TrimSpace(fmt.Sprintf(T.mask(), T.v))
 }
 
 func (T *FieldValueNumeric) Scan(v any) error {
