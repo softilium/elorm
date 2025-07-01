@@ -133,40 +133,44 @@ func AddOrGroup(childs ...*Filter) *Filter {
 	}
 }
 
-func (T *Filter) renderWhereClause() string {
+func (T *Filter) renderWhereClause() (string, error) {
 	switch T.Op {
 	case FilterEQ, FilterNOEQ, FilterGE, FilterGT, FilterLT, FilterLE:
 		if T.LeftOp != nil && T.RightOp != nil {
 			colname, err := T.LeftOp.SqlColumnName()
 			if err != nil {
-				return fmt.Sprintf("Filter.renderWhereClause: failed to get SQL column name: %s", err.Error())
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
 			}
 			fv, err := T.LeftOp.CreateFieldValue(nil)
 			if err != nil {
-				return fmt.Sprintf("Filter.renderWhereClause: failed to create field value: %s", err.Error())
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to create field value: %w", err)
 			}
 			rv, err := fv.SqlStringValue(T.RightOp)
 			if err != nil {
-				return fmt.Sprintf("Filter.renderWhereClause: failed to get SQL string value: %s", err.Error())
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL string value: %w", err)
 			}
-			return fmt.Sprintf("%s %s %v", colname, renderOpsMap[T.Op], rv)
+			return fmt.Sprintf("%s %s %v", colname, renderOpsMap[T.Op], rv), nil
 		}
 	case FilterLIKE:
 		if T.LeftOp != nil && T.RightOp != nil {
 			colname, err := T.LeftOp.SqlColumnName()
 			if err != nil {
-				return fmt.Sprintf("Filter.renderWhereClause: failed to get SQL column name: %s", err.Error())
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
 			}
-			return fmt.Sprintf("%s LIKE '%%%v%%'", colname, T.RightOp)
+			return fmt.Sprintf("%s LIKE '%%%v%%'", colname, T.RightOp), nil
 		}
 	case FilterAndGroup, FilterOrGroup:
 		results := make([]string, len(T.Childs))
 		for i, v := range T.Childs {
-			results[i] = v.renderWhereClause()
+			clause, err := v.renderWhereClause()
+			if err != nil {
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to render child clause: %w", err)
+			}
+			results[i] = clause
 		}
-		return fmt.Sprintf("(%s)", strings.Join(results, renderGroupOpsMap[T.Op]))
+		return fmt.Sprintf("(%s)", strings.Join(results, renderGroupOpsMap[T.Op])), nil
 	}
-	return ""
+	return "", nil
 }
 
 type SortItem struct {
@@ -190,6 +194,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	result = make([]*Entity, 0)
 	pages = 0
 	getSql := func(totals bool) (string, error) {
+		var builder strings.Builder
 		fields := ""
 		if totals {
 			fields = "count(*) as total"
@@ -204,37 +209,35 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 			}
 			fields = strings.Join(fnames, ", ")
 		}
-
-		tn, err := T.SqlTableName()
+		builder.WriteString("select ")
+		builder.WriteString(fields)
+		builder.WriteString(" from ")
+		tablename, err := T.SqlTableName()
 		if err != nil {
 			return "", fmt.Errorf("EntityDef.SelectEntities: failed to get SQL table name: %w", err)
 		}
-
-		query := fmt.Sprintf("select %s from %s", fields, tn)
-
-		// remove nil filters
+		builder.WriteString(tablename)
+		// Remove nil filters
 		for i := len(filters) - 1; i >= 0; i-- {
 			if filters[i] == nil {
 				filters = append(filters[:i], filters[i+1:]...)
-				break
 			}
 		}
-
 		if len(filters) > 0 {
-			query += " where "
+			builder.WriteString(" where ")
 			for i, f := range filters {
-				if f == nil {
-					continue
-				}
 				if i > 0 {
-					query += " and "
+					builder.WriteString(" and ")
 				}
-				query += f.renderWhereClause()
+				clause, err := f.renderWhereClause()
+				if err != nil {
+					return "", fmt.Errorf("EntityDef.SelectEntities: failed to render where clause: %w", err)
+				}
+				builder.WriteString(clause)
 			}
 		}
-
 		if len(sorts) > 0 && !totals {
-			query += " order by "
+			builder.WriteString(" order by ")
 			sortClauses := make([]string, 0, len(sorts))
 			for _, s := range sorts {
 				if s.Field == nil {
@@ -242,35 +245,17 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 				}
 				coln, err := s.Field.SqlColumnName()
 				if err != nil {
-					return "", fmt.Errorf("EntityDef.SelectEntities: failed to get SQL column name for field %s: %w", s.Field.Name, err)
+					return "", fmt.Errorf("EntityDef.SelectEntities: failed to get SQL column name for sort field: %w", err)
 				}
-				if s.Asc {
-					sortClauses = append(sortClauses, fmt.Sprintf("%s asc", coln))
-				} else {
-					sortClauses = append(sortClauses, fmt.Sprintf("%s desc", coln))
+				order := "ASC"
+				if !s.Asc {
+					order = "DESC"
 				}
+				sortClauses = append(sortClauses, fmt.Sprintf("%s %s", coln, order))
 			}
-			query += strings.Join(sortClauses, ", ")
-			query += " ##afterall##"
+			builder.WriteString(strings.Join(sortClauses, ", "))
 		}
-
-		if !totals && pageNo > 0 && pageSize > 0 {
-			switch T.Factory.DbDialect() {
-			case DbDialectPostgres:
-				query = strings.ReplaceAll(query, "##afterall##", fmt.Sprintf("limit %d offset %d", pageSize, (pageNo-1)*pageSize))
-			case DbDialectMSSQL:
-				query = strings.ReplaceAll(query, "##afterall##", fmt.Sprintf("OFFSET %d ROWS FETCH NEXT %d ROWS ONLY", (pageNo-1)*pageSize, pageSize))
-			case DbDialectMySQL:
-				query = strings.ReplaceAll(query, "##afterall##", fmt.Sprintf("limit %d offset %d", pageSize, (pageNo-1)*pageSize))
-			case DbDialectSQLite:
-				query = strings.ReplaceAll(query, "##afterall##", fmt.Sprintf("limit %d offset %d", pageSize, (pageNo-1)*pageSize))
-			default:
-				return "", fmt.Errorf("EntityDef.SelectEntities: pagination not supported for this DB dialect: %d", T.Factory.DbDialect())
-			}
-		} else {
-			query = strings.ReplaceAll(query, "###afterall#", "")
-		}
-		return query, nil
+		return builder.String(), nil
 	}
 
 	query, err := getSql(false)
