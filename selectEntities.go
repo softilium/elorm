@@ -320,6 +320,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 			if err != nil {
 				return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to scan count row: %w", err)
 			}
+			pages = (pages + pageSize - 1) / pageSize // calculate total pages
 		} else {
 			return result, pages, fmt.Errorf("EntityDef.SelectEntities: no rows returned for count query '%s'", countQuery)
 		}

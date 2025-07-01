@@ -188,6 +188,8 @@ func (T *Entity) MarshalJSON() ([]byte, error) {
 
 func (T *Entity) UnmarshalJSON(b []byte) error {
 
+	oldRef := T.RefString()
+
 	vm := make(map[string]any, len(T.Values))
 
 	err := json.Unmarshal(b, &vm)
@@ -251,6 +253,10 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 			}
 		}
 	}
+
+	// force to check existence of entity in database
+	T.Factory.loadedEntities.Remove(oldRef)
+	T.Factory.loadedEntities.Remove(T.RefString())
 
 	existsCopy, _ := T.Factory.LoadEntity(T.RefString())
 	T.isNew = existsCopy == nil
