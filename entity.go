@@ -8,9 +8,11 @@ import (
 	"time"
 )
 
-type IReferableEntity interface {
+type IEntity interface {
 	RefString() string
 	IsNew() bool
+	Save() error
+	LoadFrom(src IEntity, predefinedFields bool) error
 }
 
 type Entity struct {
@@ -199,9 +201,9 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 	for _, v := range T.Values {
 		if val, ok := vm[v.Def().Name]; ok {
 			switch v.Def().Type {
-			case fieldDefTypeString:
+			case FieldDefTypeString:
 				v.(*FieldValueString).Set(val.(string))
-			case fieldDefTypeInt:
+			case FieldDefTypeInt:
 				switch val.(type) {
 				case int:
 					v.(*FieldValueInt).Set(int64(val.(int)))
@@ -216,7 +218,7 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 				default:
 					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for integer field %s: %T", v.Def().Name, val)
 				}
-			case fieldDefTypeBool:
+			case FieldDefTypeBool:
 				switch val.(type) {
 				case bool:
 					v.(*FieldValueBool).Set(val.(bool))
@@ -226,16 +228,16 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 				default:
 					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for boolean field %s: %T", v.Def().Name, val)
 				}
-			case fieldDefTypeRef:
+			case FieldDefTypeRef:
 				v.(*FieldValueRef).Set(val.(string))
-			case fieldDefTypeDateTime:
+			case FieldDefTypeDateTime:
 				strVal := strings.TrimSpace(val.(string))
 				tv, err := time.Parse(time.RFC3339, strVal)
 				if err != nil {
 					return fmt.Errorf("Entity.LoadFromJSON: failed to parse date time: %w", err)
 				}
 				v.(*FieldValueDateTime).Set(tv)
-			case fieldDefTypeNumeric:
+			case FieldDefTypeNumeric:
 				switch val.(type) {
 				case float32:
 					v.(*FieldValueNumeric).Set(float64(val.(float32)))
@@ -260,6 +262,45 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 
 	existsCopy, _ := T.Factory.LoadEntity(T.RefString())
 	T.isNew = existsCopy == nil
+
+	return nil
+}
+
+func (T *Entity) LoadFrom(src IEntity, predefinedFields bool) error {
+	if src == nil {
+		return fmt.Errorf("Entity.LoadFrom: source entity is nil")
+	}
+
+	srcT, ok := src.(*Entity)
+	if !ok {
+		return fmt.Errorf("Entity.LoadFrom: source entity is not of type *EntityDef")
+	}
+
+	if T.entityDef != srcT.entityDef {
+		return fmt.Errorf("Entity.LoadFrom: source entity has different definition")
+	}
+
+	for idx, v := range T.Values {
+
+		if !predefinedFields && (v.Def().Name == RefFieldName || v.Def().Name == DataVersionFieldName) {
+			continue
+		}
+		switch ft := T.Values[idx].(type) {
+
+		case *FieldValueString:
+			ft.v = srcT.Values[idx].(*FieldValueString).v
+		case *FieldValueInt:
+			ft.v = srcT.Values[idx].(*FieldValueInt).v
+		case *FieldValueBool:
+			ft.v = srcT.Values[idx].(*FieldValueBool).v
+		case *FieldValueRef:
+			ft.v = srcT.Values[idx].(*FieldValueRef).v
+		case *FieldValueDateTime:
+			ft.v = srcT.Values[idx].(*FieldValueDateTime).v
+		case *FieldValueNumeric:
+			ft.v = srcT.Values[idx].(*FieldValueNumeric).v
+		}
+	}
 
 	return nil
 }

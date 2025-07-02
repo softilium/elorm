@@ -50,7 +50,7 @@ func AddFilterEQ(leftField *FieldDef, rightValue any) *Filter {
 }
 
 func AddFilterLIKE(leftField *FieldDef, rightValue string) *Filter {
-	if leftField == nil || leftField.Type != fieldDefTypeString {
+	if leftField == nil || leftField.Type != FieldDefTypeString {
 		return nil
 	}
 	return &Filter{

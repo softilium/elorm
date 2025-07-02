@@ -20,7 +20,7 @@ func (T *FieldValueRef) Set(newValue any) error {
 	switch v := newValue.(type) {
 	case string:
 		stringValue = v
-	case IReferableEntity:
+	case IEntity:
 		stringValue = v.RefString()
 	default:
 		if newValue != nil {

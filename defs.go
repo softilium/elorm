@@ -9,12 +9,12 @@ import (
 
 const (
 	// 6 field types are supported
-	fieldDefTypeString   = 100
-	fieldDefTypeInt      = 200
-	fieldDefTypeBool     = 300
-	fieldDefTypeRef      = 400
-	fieldDefTypeNumeric  = 500
-	fieldDefTypeDateTime = 600
+	FieldDefTypeString   = 100
+	FieldDefTypeInt      = 200
+	FieldDefTypeBool     = 300
+	FieldDefTypeRef      = 400
+	FieldDefTypeNumeric  = 500
+	FieldDefTypeDateTime = 600
 )
 
 const (
@@ -52,22 +52,22 @@ type FieldDef struct {
 
 func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 	switch T.Type {
-	case fieldDefTypeString:
+	case FieldDefTypeString:
 		x := &FieldValueString{v: T.DefValue.(string)}
 		x.entity = entity
 		x.def = T
 		return x, nil
-	case fieldDefTypeInt:
+	case FieldDefTypeInt:
 		x := &FieldValueInt{v: T.DefValue.(int64)}
 		x.entity = entity
 		x.def = T
 		return x, nil
-	case fieldDefTypeBool:
+	case FieldDefTypeBool:
 		x := &FieldValueBool{v: T.DefValue.(bool)}
 		x.entity = entity
 		x.def = T
 		return x, nil
-	case fieldDefTypeRef:
+	case FieldDefTypeRef:
 		x := &FieldValueRef{factory: T.EntityDef.Factory}
 		vt, ok := T.DefValue.(string)
 		if ok {
@@ -76,12 +76,12 @@ func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 		x.entity = entity
 		x.def = T
 		return x, nil
-	case fieldDefTypeNumeric:
+	case FieldDefTypeNumeric:
 		x := &FieldValueNumeric{v: T.DefValue.(float64)}
 		x.entity = entity
 		x.def = T
 		return x, nil
-	case fieldDefTypeDateTime:
+	case FieldDefTypeDateTime:
 		x := &FieldValueDateTime{}
 		tv, ok := T.DefValue.(time.Time)
 		if ok {
@@ -124,21 +124,21 @@ func (T *FieldDef) SqlColumnType() (string, error) {
 
 func (T *FieldDef) sqlColumnTypePostgres() (string, error) {
 	switch T.Type {
-	case fieldDefTypeString:
+	case FieldDefTypeString:
 		return fmt.Sprintf("varchar(%d)", T.Len), nil
-	case fieldDefTypeInt:
+	case FieldDefTypeInt:
 		return "int", nil
-	case fieldDefTypeBool:
+	case FieldDefTypeBool:
 		return "bool", nil
-	case fieldDefTypeRef:
+	case FieldDefTypeRef:
 		t, err := T.EntityDef.Factory.refColumnType()
 		if err != nil {
 			return "", err
 		}
 		return t, nil
-	case fieldDefTypeDateTime:
+	case FieldDefTypeDateTime:
 		return "timestamp without time zone", nil
-	case fieldDefTypeNumeric:
+	case FieldDefTypeNumeric:
 		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
 	default:
 		return "", fmt.Errorf("fieldDef.sqlColumnTypePostgres: unknown field type: %d", T.Type)
@@ -147,17 +147,17 @@ func (T *FieldDef) sqlColumnTypePostgres() (string, error) {
 
 func (T *FieldDef) sqlColumnTypeMSSQL() (string, error) {
 	switch T.Type {
-	case fieldDefTypeString:
+	case FieldDefTypeString:
 		return fmt.Sprintf("nvarchar(%d)", T.Len), nil
-	case fieldDefTypeInt:
+	case FieldDefTypeInt:
 		return "bigint", nil
-	case fieldDefTypeBool:
+	case FieldDefTypeBool:
 		return "bit", nil
-	case fieldDefTypeRef:
+	case FieldDefTypeRef:
 		return fmt.Sprintf("nvarchar(%d)", refFieldLength), nil
-	case fieldDefTypeDateTime:
+	case FieldDefTypeDateTime:
 		return "datetime", nil
-	case fieldDefTypeNumeric:
+	case FieldDefTypeNumeric:
 		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
 	default:
 		return "", fmt.Errorf("fieldDef.sqlColumnTypeMSSQL: unknown field type: %d", T.Type)
@@ -166,17 +166,17 @@ func (T *FieldDef) sqlColumnTypeMSSQL() (string, error) {
 
 func (T *FieldDef) sqlColumnTypeMySQL() (string, error) {
 	switch T.Type {
-	case fieldDefTypeString:
+	case FieldDefTypeString:
 		return fmt.Sprintf("varchar(%d)", T.Len), nil
-	case fieldDefTypeInt:
+	case FieldDefTypeInt:
 		return "int", nil
-	case fieldDefTypeBool:
+	case FieldDefTypeBool:
 		return "tinyint(1)", nil
-	case fieldDefTypeRef:
+	case FieldDefTypeRef:
 		return "varchar(36)", nil
-	case fieldDefTypeDateTime:
+	case FieldDefTypeDateTime:
 		return "datetime", nil
-	case fieldDefTypeNumeric:
+	case FieldDefTypeNumeric:
 		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
 	default:
 		return "", fmt.Errorf("fieldDef.sqlColumnTypeMySQL: unknown field type: %d", T.Type)
@@ -185,17 +185,17 @@ func (T *FieldDef) sqlColumnTypeMySQL() (string, error) {
 
 func (T *FieldDef) sqlColumnTypeSQLite() (string, error) {
 	switch T.Type {
-	case fieldDefTypeString:
+	case FieldDefTypeString:
 		return fmt.Sprintf("varchar(%d)", T.Len), nil
-	case fieldDefTypeInt:
+	case FieldDefTypeInt:
 		return "integer", nil
-	case fieldDefTypeBool:
+	case FieldDefTypeBool:
 		return "boolean", nil
-	case fieldDefTypeRef:
+	case FieldDefTypeRef:
 		return fmt.Sprintf("varchar(%d)", refFieldLength), nil
-	case fieldDefTypeDateTime:
+	case FieldDefTypeDateTime:
 		return "datetime", nil
-	case fieldDefTypeNumeric:
+	case FieldDefTypeNumeric:
 		return fmt.Sprintf("decimal(%d,%d)", T.Precision, T.Scale), nil
 	default:
 		return "", fmt.Errorf("fieldDef.sqlColumnTypeSQLite: unknown field type: %d", T.Type)
@@ -218,7 +218,7 @@ func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*
 	nr := &FieldDef{
 		EntityDef: T,
 		Name:      name,
-		Type:      fieldDefTypeString,
+		Type:      FieldDefTypeString,
 		Len:       size,
 		DefValue:  defValue,
 	}
@@ -233,7 +233,7 @@ func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*FieldDef, erro
 	nr := &FieldDef{
 		EntityDef: T,
 		Name:      name,
-		Type:      fieldDefTypeBool,
+		Type:      FieldDefTypeBool,
 		DefValue:  defValue,
 	}
 
@@ -248,7 +248,7 @@ func (T *EntityDef) AddDateTimeFieldDef(name string) (*FieldDef, error) {
 	nr := &FieldDef{
 		EntityDef: T,
 		Name:      name,
-		Type:      fieldDefTypeDateTime,
+		Type:      FieldDefTypeDateTime,
 	}
 
 	T.FieldDefs = append(T.FieldDefs, nr)
@@ -262,7 +262,7 @@ func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*FieldDef, erro
 	nr := &FieldDef{
 		EntityDef: T,
 		Name:      name,
-		Type:      fieldDefTypeInt,
+		Type:      FieldDefTypeInt,
 		DefValue:  defValue,
 	}
 
@@ -276,7 +276,7 @@ func (T *EntityDef) AddRefFieldDef(name string, refType *EntityDef) (*FieldDef, 
 	}
 	nr := &FieldDef{
 		Name:      name,
-		Type:      fieldDefTypeRef,
+		Type:      FieldDefTypeRef,
 		EntityDef: refType,
 	}
 
@@ -290,7 +290,7 @@ func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, De
 	}
 	nr := &FieldDef{
 		Name:      name,
-		Type:      fieldDefTypeNumeric,
+		Type:      FieldDefTypeNumeric,
 		DefValue:  DefValue,
 		Precision: Precision,
 		Scale:     Scale,
