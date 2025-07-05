@@ -329,7 +329,7 @@ type EntityDef struct { //base for any real entity types
 
 func (T *EntityDef) FieldDefByName(name string) *FieldDef {
 	for _, v := range T.FieldDefs {
-		if v.Name == name {
+		if strings.EqualFold(v.Name, name) {
 			return v
 		}
 	}

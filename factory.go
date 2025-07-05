@@ -375,6 +375,41 @@ func (T *Factory) FetchRowMap(rows *sql.Rows) (map[string]any, error) {
 	return hm, nil
 }
 
+func (T *Factory) DeleteEntity(ref string) error {
+
+	if ref == "" {
+		return fmt.Errorf("Factory.DeleteEntity: ref is empty")
+	}
+
+	ok, def := T.IsRef(ref)
+	if !ok {
+		return fmt.Errorf("Factory.DeleteEntity: invalid ref %s", ref)
+	}
+
+	tableName, err := def.SqlTableName()
+	if err != nil {
+		return fmt.Errorf("Factory.DeleteEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
+	}
+
+	switch T.dbDialect {
+	case DbDialectPostgres, DbDialectMSSQL:
+		_, err = T.DB.Exec(fmt.Sprintf("delete from %s where Ref=$1", tableName), ref)
+	case DbDialectMySQL, DbDialectSQLite:
+		_, err = T.DB.Exec(fmt.Sprintf("delete from %s where Ref=?", tableName), ref)
+	default:
+		return fmt.Errorf("Factory.DeleteEntity: unsupported db dialect: %d", T.dbDialect)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Factory.DeleteEntity: failed to delete entity: %w", err)
+	}
+
+	T.loadedEntities.Remove(ref)
+
+	return nil
+
+}
+
 // Database structure related methods
 
 func (T *Factory) refColumnType() (string, error) {

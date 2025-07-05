@@ -24,20 +24,6 @@ type Filter struct {
 	Childs  []*Filter
 }
 
-var renderOpsMap = map[int]string{
-	FilterEQ:   "=",
-	FilterNOEQ: "<>",
-	FilterGT:   ">",
-	FilterGE:   ">=",
-	FilterLT:   "<",
-	FilterLE:   "<=",
-}
-
-var renderGroupOpsMap = map[int]string{
-	FilterAndGroup: " and ",
-	FilterOrGroup:  " or ",
-}
-
 func AddFilterEQ(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -131,6 +117,20 @@ func AddOrGroup(childs ...*Filter) *Filter {
 		RightOp: nil,
 		Childs:  childs,
 	}
+}
+
+var renderOpsMap = map[int]string{
+	FilterEQ:   "=",
+	FilterNOEQ: "<>",
+	FilterGT:   ">",
+	FilterGE:   ">=",
+	FilterLT:   "<",
+	FilterLE:   "<=",
+}
+
+var renderGroupOpsMap = map[int]string{
+	FilterAndGroup: " and ",
+	FilterOrGroup:  " or ",
 }
 
 func (T *Filter) renderWhereClause() (string, error) {
@@ -254,6 +254,16 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 				sortClauses = append(sortClauses, fmt.Sprintf("%s %s", coln, order))
 			}
 			builder.WriteString(strings.Join(sortClauses, ", "))
+			if pageNo > 0 && pageSize > 0 {
+				switch T.Factory.DbDialect() {
+				case DbDialectSQLite, DbDialectPostgres:
+					builder.WriteString(fmt.Sprintf(" limit %d offset %d", pageSize, (pageNo-1)*pageSize))
+				case DbDialectMySQL:
+					builder.WriteString(fmt.Sprintf(" limit %d, %d", (pageNo-1)*pageSize, pageSize))
+				case DbDialectMSSQL:
+					builder.WriteString(fmt.Sprintf(" offset %d rows fetch next %d rows only", (pageNo-1)*pageSize, pageSize))
+				}
+			}
 		}
 		return builder.String(), nil
 	}
@@ -269,16 +279,14 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	}
 	defer rows.Close()
 
+	fp := make([]any, len(T.FieldDefs))
 	for rows.Next() {
-
 		res, err := T.Factory.CreateEntity(T)
 		if err != nil {
 			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to create entity: %w", err)
 		}
-
-		fp := make([]any, 0, len(T.FieldDefs))
-		for _, v := range T.FieldDefs {
-			fp = append(fp, res.Values[v.Name].(any))
+		for i, v := range T.FieldDefs {
+			fp[i] = res.Values[v.Name].(any)
 		}
 		err = rows.Scan(fp...)
 		if err != nil {
@@ -286,7 +294,6 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		}
 		res.isNew = false
 		T.Factory.loadedEntities.Add(res.RefString(), res)
-
 		result = append(result, res)
 	}
 
@@ -312,5 +319,4 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	}
 
 	return result, pages, nil
-
 }
