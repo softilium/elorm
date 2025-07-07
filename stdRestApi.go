@@ -21,6 +21,12 @@ type RestApiConfig[T IEntity] struct {
 	AutoFilters        bool
 	DefaultPageSize    int
 
+	EnableGetOne  bool
+	EnableGetList bool
+	EnablePost    bool
+	EnablePut     bool
+	EnableDelete  bool
+
 	ParamRef      string
 	ParamPageNo   string
 	ParamPageSize string
@@ -40,6 +46,12 @@ func CreateStdRestApiConfig[T IEntity](
 		AutoFilters:        true,
 		DefaultPageSize:    20,
 
+		EnableGetOne:  true,
+		EnableGetList: true,
+		EnablePost:    true,
+		EnablePut:     true,
+		EnableDelete:  true,
+
 		ParamRef:      "ref",
 		ParamPageNo:   "pageno",
 		ParamPageSize: "pagesize",
@@ -58,20 +70,42 @@ func HandleRestApi[T IEntity](config RestApiConfig[T]) func(w http.ResponseWrite
 		switch r.Method {
 		case http.MethodGet:
 			if r.URL.Query().Has(config.ParamRef) {
-				responseGet(config, r, w)
+				if config.EnableGetOne {
+					responseGet(config, r, w)
+				} else {
+					SendHttpError(w, "", http.StatusNotFound)
+				}
 				return
 			} else {
-				responseGetList(config, r, w)
+				if config.EnableGetList {
+					responseGetList(config, r, w)
+				} else {
+					SendHttpError(w, "", http.StatusNotFound)
+				}
 				return
 			}
 		case http.MethodPost:
-			responsePost(config, w, r)
+			if config.EnablePost {
+				responsePost(config, w, r)
+			} else {
+				SendHttpError(w, "", http.StatusNotFound)
+			}
 			return
 		case http.MethodPut:
-			if r.URL.Query().Has(config.ParamRef) {
-				responsePut(config, r, w)
+			if config.EnablePut {
+				if r.URL.Query().Has(config.ParamRef) {
+					responsePut(config, r, w)
+				} else {
+					SendHttpError(w, fmt.Sprintf("Missing '%s' parameter", config.ParamRef), http.StatusBadRequest)
+				}
 			} else {
-				SendHttpError(w, fmt.Sprintf("Missing '%s' parameter", config.ParamRef), http.StatusBadRequest)
+				SendHttpError(w, "", http.StatusNotFound)
+			}
+		case http.MethodDelete:
+			if config.EnableDelete {
+				responseDelete(config, w, r)
+			} else {
+				SendHttpError(w, "", http.StatusNotFound)
 			}
 		default:
 			SendHttpError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -123,6 +157,19 @@ func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("Error saving user: %v", err), http.StatusInternalServerError)
 		return
+	}
+}
+
+func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Has(config.ParamRef) {
+		ref := r.URL.Query().Get(config.ParamRef)
+		err := config.Def.Factory.DeleteEntity(ref)
+		if err != nil {
+			SendHttpError(w, fmt.Sprintf("Error deleting record: %w", err), http.StatusNotFound)
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		SendHttpError(w, "", http.StatusNotFound)
 	}
 }
 
