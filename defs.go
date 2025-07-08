@@ -307,9 +307,10 @@ type IndexDef struct {
 	FieldDefs []*FieldDef
 }
 
-type EntityHandlerFunc func(entity any) error
+type EntityHandlerFunc func(entity any) error      // we should instantiate entity before calling this handler
+type EntityByRefHandlerFunc func(ref string) error // we can call this handler without instantiating entity, just by reference for better performance
 
-type EntityDef struct { //base for any real entity types
+type EntityDef struct {
 	Factory              *Factory
 	DataVersionCheckMode int // DataVersionCheckNever, DataVersionCheckDefault, DataVersionCheckAlways
 	ObjectName           string
@@ -322,9 +323,13 @@ type EntityDef struct { //base for any real entity types
 	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom one
 	selectStmt           *sql.Stmt
 
-	FillNewHandler    EntityHandlerFunc
-	BeforeSaveHandler EntityHandlerFunc
-	AfterSaveHandler  EntityHandlerFunc
+	FillNewHandler           EntityHandlerFunc
+	BeforeSaveHandler        EntityHandlerFunc
+	AfterSaveHandler         EntityHandlerFunc
+	BeforeDeleteHandler      EntityHandlerFunc
+	BeforeSaveHandlerByRef   EntityByRefHandlerFunc
+	AfterSaveHandlerByRef    EntityByRefHandlerFunc
+	BeforeDeleteHandlerByRef EntityByRefHandlerFunc
 }
 
 func (T *EntityDef) FieldDefByName(name string) *FieldDef {
@@ -479,6 +484,7 @@ func (T *EntityDef) ensureDBStructure() error {
 			if err != nil {
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
 			}
+			defer rows.Close()
 			if !rows.Next() {
 				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
 				if err != nil {
@@ -526,6 +532,7 @@ func (T *EntityDef) ensureDBStructure() error {
 			if err != nil {
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
 			}
+			defer rows.Close()
 			colExists := false
 			for rows.Next() {
 				var cid int

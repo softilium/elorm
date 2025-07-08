@@ -386,25 +386,62 @@ func (T *Factory) DeleteEntity(ref string) error {
 		return fmt.Errorf("Factory.DeleteEntity: invalid ref %s", ref)
 	}
 
+	var err error
+	tx, err := T.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("Factory.DeleteEntity: failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if def.BeforeDeleteHandlerByRef != nil {
+		err := def.BeforeDeleteHandlerByRef(ref)
+		if err != nil {
+			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandlerByRef failed: %w", err)
+		}
+	}
+
+	if def.BeforeDeleteHandler != nil {
+
+		loaded, err := T.LoadEntity(ref)
+		if err != nil {
+			return fmt.Errorf("Factory.DeleteEntity: failed to load entity for deletion (for running BeforeDeleteHandler): %w", err)
+		}
+
+		err = def.BeforeDeleteHandler(loaded)
+		if err != nil {
+			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandler failed: %w", err)
+		}
+	}
+
 	tableName, err := def.SqlTableName()
 	if err != nil {
 		return fmt.Errorf("Factory.DeleteEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
 	}
 
+	sts := T.DB.Stats()
+	fmt.Printf("%+1v\n", sts)
+
 	switch T.dbDialect {
 	case DbDialectPostgres, DbDialectMSSQL:
-		_, err = T.DB.Exec(fmt.Sprintf("delete from %s where Ref=$1", tableName), ref)
+		sql := fmt.Sprintf("delete from %s where Ref=$1", tableName)
+		_, err = tx.Exec(sql, ref)
 	case DbDialectMySQL, DbDialectSQLite:
-		_, err = T.DB.Exec(fmt.Sprintf("delete from %s where Ref=?", tableName), ref)
+		sql := fmt.Sprintf("delete from %s where Ref=?", tableName)
+		_, err = tx.Exec(sql, ref)
 	default:
 		return fmt.Errorf("Factory.DeleteEntity: unsupported db dialect: %d", T.dbDialect)
 	}
+
+	sts = T.DB.Stats()
+	fmt.Printf("%+1v\n", sts)
 
 	if err != nil {
 		return fmt.Errorf("Factory.DeleteEntity: failed to delete entity: %w", err)
 	}
 
 	T.loadedEntities.Remove(ref)
+
+	tx.Commit()
 
 	return nil
 

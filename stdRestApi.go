@@ -165,7 +165,8 @@ func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r
 		ref := r.URL.Query().Get(config.ParamRef)
 		err := config.Def.Factory.DeleteEntity(ref)
 		if err != nil {
-			SendHttpError(w, fmt.Sprintf("Error deleting record: %w", err), http.StatusNotFound)
+			SendHttpError(w, fmt.Sprintf("Error deleting record: %v", err), http.StatusNotFound)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 	} else {
