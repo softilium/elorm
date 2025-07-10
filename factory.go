@@ -418,9 +418,6 @@ func (T *Factory) DeleteEntity(ref string) error {
 		return fmt.Errorf("Factory.DeleteEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
 	}
 
-	sts := T.DB.Stats()
-	fmt.Printf("%+1v\n", sts)
-
 	switch T.dbDialect {
 	case DbDialectPostgres, DbDialectMSSQL:
 		sql := fmt.Sprintf("delete from %s where Ref=$1", tableName)
@@ -431,9 +428,6 @@ func (T *Factory) DeleteEntity(ref string) error {
 	default:
 		return fmt.Errorf("Factory.DeleteEntity: unsupported db dialect: %d", T.dbDialect)
 	}
-
-	sts = T.DB.Stats()
-	fmt.Printf("%+1v\n", sts)
 
 	if err != nil {
 		return fmt.Errorf("Factory.DeleteEntity: failed to delete entity: %w", err)
