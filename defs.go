@@ -1,7 +1,6 @@
 package elorm
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -321,7 +320,6 @@ type EntityDef struct {
 	IsDeletedField       *FieldDef                // field for soft delete
 	DataVersionField     *FieldDef                // field for data versioning
 	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom one
-	selectStmt           *sql.Stmt
 
 	FillNewHandler           EntityHandlerFunc
 	BeforeSaveHandler        EntityHandlerFunc
@@ -355,19 +353,20 @@ func (T *EntityDef) ensureDBStructure() error {
 	switch T.Factory.dbDialect {
 	case DbDialectPostgres:
 
-		tran, err := T.Factory.DB.Begin()
+		tran, err := T.Factory.BeginTran()
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
 		}
-		defer tran.Rollback()
 
 		tn, err := T.SqlTableName()
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
 		}
 
 		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s()", tn))
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
 		}
 
@@ -375,21 +374,25 @@ func (T *EntityDef) ensureDBStructure() error {
 
 			colType, err := v.SqlColumnType()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
 			}
 
 			coln, err := v.SqlColumnName()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
 			}
 
 			_, err = tran.Exec(fmt.Sprintf("alter table %s add column if not exists %s %s", tn, coln, colType))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
 			}
 
 			_, err = tran.Exec(fmt.Sprintf("alter table %s alter column %s type %s", tn, coln, colType))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to alter column %s: %w", coln, err)
 			}
 
@@ -400,136 +403,151 @@ func (T *EntityDef) ensureDBStructure() error {
 
 		err = row.Scan(&cnt)
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to scan constraint count: %w", err)
 		}
 
 		if cnt == 0 {
 			_, err = tran.Exec(fmt.Sprintf("alter table %s add constraint %s_pk primary key (Ref)", tn, tn))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add primary key constraint: %w", err)
 			}
 		}
 
-		err = tran.Commit()
+		err = T.Factory.CommitTran(tran)
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
 		}
 		return nil
 	case DbDialectMSSQL:
-		tran, err := T.Factory.DB.Begin()
+		tran, err := T.Factory.BeginTran()
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
 		}
-		defer tran.Rollback()
 
 		// Table name
 		tn, err := T.SqlTableName()
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
 		}
 
 		_, err = tran.Exec(fmt.Sprintf("if not exists (select * from sysobjects where name='%s' and xtype='U') create table %s (ref nvarchar(%d) primary key)", tn, tn, refFieldLength))
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
 		}
 
 		for _, v := range T.FieldDefs {
 			colType, err := v.SqlColumnType()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
 			}
 			coln, err := v.SqlColumnName()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
 			}
 			_, err = tran.Exec(fmt.Sprintf("if not exists (select * from syscolumns where id=object_id('%s') and name='%s') alter table %s add %s %s", tn, coln, tn, coln, colType))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
 			}
 		}
-		err = tran.Commit()
+		err = T.Factory.CommitTran(tran)
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
 		}
 		return nil
 	case DbDialectMySQL:
-		tran, err := T.Factory.DB.Begin()
+		tran, err := T.Factory.BeginTran()
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
 		}
-		defer tran.Rollback()
 
 		// Table name
 		tn, err := T.SqlTableName()
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
 		}
 
 		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(36) primary key)", tn))
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
 		}
 
 		for _, v := range T.FieldDefs {
 			colType, err := v.SqlColumnType()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
 			}
 			coln, err := v.SqlColumnName()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
 			}
 
 			rows, err := tran.Query(fmt.Sprintf("SELECT 1 FROM information_schema.columns WHERE table_name = '%s' AND column_name = '%s'", tn, coln))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
 			}
 			defer rows.Close()
 			if !rows.Next() {
 				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
 				if err != nil {
+					_ = T.Factory.RollbackTran(tran)
 					return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
 				}
 			}
 			rows.Close()
 		}
-		err = tran.Commit()
+		err = T.Factory.CommitTran(tran)
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
 		}
 		return nil
 	case DbDialectSQLite:
-		tran, err := T.Factory.DB.Begin()
+		tran, err := T.Factory.BeginTran()
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to begin transaction: %w", err)
 		}
-		defer tran.Rollback()
 
 		// Table name
 		tn, err := T.SqlTableName()
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL table name: %w", err)
 		}
 
 		// Create table if not exists with ref as primary key
 		_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(%d) primary key)", tn, refFieldLength))
 		if err != nil {
+			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to create table: %w", err)
 		}
 
 		for _, v := range T.FieldDefs {
 			colType, err := v.SqlColumnType()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column type for field %s: %w", v.Name, err)
 			}
 			coln, err := v.SqlColumnName()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get SQL column name for field %s: %w", v.Name, err)
 			}
 
 			// Check if column exists
 			rows, err := tran.Query(fmt.Sprintf("PRAGMA table_info(%s)", tn))
 			if err != nil {
+				_ = T.Factory.RollbackTran(tran)
 				return fmt.Errorf("EntityDef.ensureDBStructure: failed to get column information for field %s: %w", v.Name, err)
 			}
 			defer rows.Close()
@@ -550,11 +568,12 @@ func (T *EntityDef) ensureDBStructure() error {
 			if !colExists {
 				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
 				if err != nil {
+					_ = T.Factory.RollbackTran(tran)
 					return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
 				}
 			}
 		}
-		err = tran.Commit()
+		err = T.Factory.CommitTran(tran)
 		if err != nil {
 			return fmt.Errorf("EntityDef.ensureDBStructure: failed to commit transaction: %w", err)
 		}

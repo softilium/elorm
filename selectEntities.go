@@ -217,7 +217,6 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 			return "", fmt.Errorf("EntityDef.SelectEntities: failed to get SQL table name: %w", err)
 		}
 		builder.WriteString(tablename)
-		// Remove nil filters
 		for i := len(filters) - 1; i >= 0; i-- {
 			if filters[i] == nil {
 				filters = append(filters[:i], filters[i+1:]...)
@@ -273,7 +272,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to get SQL query: %w", err)
 	}
 
-	rows, err := T.Factory.DB.Query(query)
+	rows, err := T.Factory.Query(query)
 	if err != nil {
 		return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to execute query '%s': %w", query, err)
 	}
@@ -302,7 +301,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		if err != nil {
 			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to get count SQL query: %w", err)
 		}
-		countRows, err := T.Factory.DB.Query(countQuery)
+		countRows, err := T.Factory.Query(countQuery)
 		if err != nil {
 			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to execute count query '%s': %w", countQuery, err)
 		}

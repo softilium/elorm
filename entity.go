@@ -84,11 +84,10 @@ func (T *Entity) Save() error {
 		fn = append(fn, coln)
 	}
 
-	tx, err := T.Factory.DB.Begin()
+	tx, err := T.Factory.BeginTran()
 	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback() // rollback transaction if not committed
 
 	if T.isNew {
 
@@ -100,6 +99,7 @@ func (T *Entity) Save() error {
 		for _, v := range T.entityDef.FieldDefs {
 			sqlv, err := T.Values[v.Name].SqlStringValue()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: failed to get SQL value for field %s: %w", v.Name, err)
 			}
 			fv = append(fv, sqlv)
@@ -109,12 +109,14 @@ func (T *Entity) Save() error {
 			tableName, strings.Join(fn, ", "), strings.Join(fv, ", "))
 		_, err = tx.Exec(sql)
 		if err != nil {
+			_ = T.Factory.RollbackTran(tx)
 			return fmt.Errorf("Entity.Save: failed to insert: %w", err)
 		}
 
 	} else {
 		refsv, err := T.ref.SqlStringValue()
 		if err != nil {
+			_ = T.Factory.RollbackTran(tx)
 			return fmt.Errorf("Entity.Save: failed to get SQL value for Ref field: %w", err)
 		}
 		setlist := make([]string, 0, fieldCount)
@@ -123,6 +125,7 @@ func (T *Entity) Save() error {
 
 			sv, err := T.Values[v.Name].SqlStringValue()
 			if err != nil {
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: failed to get SQL value for field %s: %w", v.Name, err)
 			}
 			setlist = append(setlist, fmt.Sprintf("%s = %s", coln, sv))
@@ -137,15 +140,18 @@ func (T *Entity) Save() error {
 			res, err := tx.Exec(sql)
 			if err != nil {
 				T.dataVersion.Set(oldDV)
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: failed to update: %w", err)
 			}
 			rowsAffected, err := res.RowsAffected()
 			if err != nil {
 				T.dataVersion.Set(oldDV)
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: failed to get rows affected: %w", err)
 			}
 			if rowsAffected != 1 {
 				T.dataVersion.Set(oldDV)
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: update failed, entity %s was changed by another user", T.RefString())
 			}
 
@@ -155,12 +161,13 @@ func (T *Entity) Save() error {
 				tableName, strings.Join(setlist, ", "), refsv)
 			_, err = tx.Exec(sql)
 			if err != nil {
+				_ = T.Factory.RollbackTran(tx)
 				return fmt.Errorf("Entity.Save: failed to update: %w", err)
 			}
 		}
 	}
 
-	err = tx.Commit()
+	err = T.Factory.CommitTran(tx)
 
 	T.isNew = false
 	if err == nil {

@@ -16,6 +16,74 @@ type Factory struct {
 	loadedEntities         *expirable.LRU[string, *Entity]
 	dataVersionCheckMode   int
 	AggressiveReadingCache bool // It assumes each database has only one factory instance, so it can cache entities aggressively.
+
+	//for sqlite
+	activeTx      *sql.Tx // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
+	nestedTxLevel int     // Used to track nested transactions, so we can commit or rollback correctly.
+}
+
+func (f *Factory) BeginTran() (*sql.Tx, error) {
+
+	if f.dbDialect != DbDialectSQLite {
+		return f.DB.Begin()
+	}
+
+	if f.nestedTxLevel == 0 {
+		newTx, err := f.DB.Begin()
+		if err != nil {
+			return nil, fmt.Errorf("Factory.BeginTran: failed to begin transaction: %w", err)
+		}
+		f.activeTx = newTx
+		f.nestedTxLevel = 1
+	} else {
+		f.nestedTxLevel++
+	}
+
+	return f.activeTx, nil
+}
+
+func (f *Factory) CommitTran(tx *sql.Tx) error {
+	if f.dbDialect != DbDialectSQLite {
+		return tx.Commit()
+	} else {
+
+		if f.nestedTxLevel == 0 {
+			return fmt.Errorf("Factory.CommitTran: no active transaction to commit")
+		}
+		f.nestedTxLevel--
+		if f.nestedTxLevel == 0 {
+			err := f.activeTx.Commit()
+			if err != nil {
+				f.RollbackTran(tx)
+			}
+			f.activeTx = nil
+			return err
+		}
+		return nil
+	}
+}
+
+func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
+	if f.dbDialect == DbDialectSQLite {
+		if f.nestedTxLevel > 0 {
+			return f.activeTx.Query(query, args...)
+		}
+		return f.DB.Query(query, args...)
+	}
+	return f.DB.Query(query, args...)
+}
+
+func (f *Factory) RollbackTran(tx *sql.Tx) error {
+	if f.dbDialect != DbDialectSQLite {
+		return tx.Rollback()
+	} else {
+		if f.nestedTxLevel == 0 {
+			return fmt.Errorf("Factory.RollbackTran: no active transaction to rollback")
+		}
+		err := f.activeTx.Rollback()
+		f.activeTx = nil
+		return err
+	}
 }
 
 func CreateFactory(dbDialect string, connectionString string) (*Factory, error) {
@@ -254,21 +322,14 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 		}
 	}
 
-	if def.selectStmt == nil {
-
-		sql := ""
-		switch T.dbDialect {
-		case DbDialectPostgres, DbDialectMSSQL:
-			sql = fmt.Sprintf("select %s from %s where ref=$1", strings.Join(fn, ", "), tableName)
-		case DbDialectMySQL, DbDialectSQLite:
-			sql = fmt.Sprintf("select %s from %s where ref=?", strings.Join(fn, ", "), tableName)
-		}
-		def.selectStmt, err = T.DB.Prepare(sql)
-		if err != nil {
-			return nil, fmt.Errorf("Factory.LoadEntity: failed to prepare select statement: %w", err)
-		}
+	sql := ""
+	switch T.dbDialect {
+	case DbDialectPostgres, DbDialectMSSQL:
+		sql = fmt.Sprintf("select %s from %s where ref=$1", strings.Join(fn, ", "), tableName)
+	case DbDialectMySQL, DbDialectSQLite:
+		sql = fmt.Sprintf("select %s from %s where ref=?", strings.Join(fn, ", "), tableName)
 	}
-	rows, err := def.selectStmt.Query(Ref)
+	rows, err := T.Query(sql, Ref)
 	if err != nil {
 		return nil, fmt.Errorf("Factory.LoadEntity: failed to query select statement: %w", err)
 	}
@@ -387,15 +448,15 @@ func (T *Factory) DeleteEntity(ref string) error {
 	}
 
 	var err error
-	tx, err := T.DB.Begin()
+	tx, err := T.BeginTran()
 	if err != nil {
 		return fmt.Errorf("Factory.DeleteEntity: failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
 
 	if def.BeforeDeleteHandlerByRef != nil {
 		err := def.BeforeDeleteHandlerByRef(ref)
 		if err != nil {
+			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandlerByRef failed: %w", err)
 		}
 	}
@@ -404,17 +465,20 @@ func (T *Factory) DeleteEntity(ref string) error {
 
 		loaded, err := T.LoadEntity(ref)
 		if err != nil {
+			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: failed to load entity for deletion (for running BeforeDeleteHandler): %w", err)
 		}
 
 		err = def.BeforeDeleteHandler(loaded)
 		if err != nil {
+			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandler failed: %w", err)
 		}
 	}
 
 	tableName, err := def.SqlTableName()
 	if err != nil {
+		_ = T.RollbackTran(tx)
 		return fmt.Errorf("Factory.DeleteEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
 	}
 
@@ -426,19 +490,18 @@ func (T *Factory) DeleteEntity(ref string) error {
 		sql := fmt.Sprintf("delete from %s where Ref=?", tableName)
 		_, err = tx.Exec(sql, ref)
 	default:
+		_ = T.RollbackTran(tx)
 		return fmt.Errorf("Factory.DeleteEntity: unsupported db dialect: %d", T.dbDialect)
 	}
 
 	if err != nil {
+		_ = T.RollbackTran(tx)
 		return fmt.Errorf("Factory.DeleteEntity: failed to delete entity: %w", err)
 	}
 
 	T.loadedEntities.Remove(ref)
 
-	tx.Commit()
-
-	return nil
-
+	return T.CommitTran(tx)
 }
 
 // Database structure related methods

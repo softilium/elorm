@@ -34,6 +34,8 @@ type RestApiConfig[T IEntity] struct {
 	ParamSortBy   string
 }
 
+const DefaultPageSize = 20
+
 func CreateStdRestApiConfig[T IEntity](
 	def EntityDef,
 	loadEntityFunc func(ref string) (*T, error),
@@ -46,7 +48,7 @@ func CreateStdRestApiConfig[T IEntity](
 		CreateEntityFunc:   createEntityFunc,
 		AdditionalHeaders:  make(map[string]string),
 		AutoFilters:        true,
-		DefaultPageSize:    20,
+		DefaultPageSize:    DefaultPageSize,
 
 		EnableGetOne:  true,
 		EnableGetList: true,
@@ -117,22 +119,24 @@ func HandleRestApi[T IEntity](config RestApiConfig[T]) func(w http.ResponseWrite
 }
 
 func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
+	const methodPrefix = "RestApiConfig.responsePut: "
 	ref := r.URL.Query().Get(config.ParamRef)
 
 	dbRecord, err := config.LoadEntityFunc(ref)
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error fetching record: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to load entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 
 	reqRecord, err := config.CreateEntityFunc()
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error creating record: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to create entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
+
 	err = json.NewDecoder(r.Body).Decode(&reqRecord)
 	if err != nil {
-		SendHttpError(w, "Invalid request data", http.StatusBadRequest)
+		SendHttpError(w, fmt.Sprintf("%sinvalid request data: %v", methodPrefix, err), http.StatusBadRequest)
 		return
 	}
 
@@ -140,60 +144,66 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 
 	err = (*dbRecord).Save()
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error saving user: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 }
 
 func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *http.Request) {
+	const methodPrefix = "RestApiConfig.responsePost: "
 	newRecord, err := config.CreateEntityFunc()
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error creating record: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to create entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
+
 	err = json.NewDecoder(r.Body).Decode(&newRecord)
 	if err != nil {
-		SendHttpError(w, "Invalid request data", http.StatusBadRequest)
+		SendHttpError(w, fmt.Sprintf("%sinvalid request data: %v", methodPrefix, err), http.StatusBadRequest)
 		return
 	}
+
 	err = (*newRecord).Save()
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error saving user: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 }
 
 func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *http.Request) {
+	const methodPrefix = "RestApiConfig.responseDelete: "
 	if r.URL.Query().Has(config.ParamRef) {
 		ref := r.URL.Query().Get(config.ParamRef)
 		err := config.Def.Factory.DeleteEntity(ref)
 		if err != nil {
-			SendHttpError(w, fmt.Sprintf("Error deleting record: %v", err), http.StatusNotFound)
+			SendHttpError(w, fmt.Sprintf("%sfailed to delete entity: %v", methodPrefix, err), http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 	} else {
-		SendHttpError(w, "", http.StatusNotFound)
+		SendHttpError(w, fmt.Sprintf("%smissing ref parameter", methodPrefix), http.StatusNotFound)
 	}
 }
 
 func responseGet[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
+	const methodPrefix = "RestApiConfig.responseGet: "
 	ref := r.URL.Query().Get(config.ParamRef)
 
 	record, err := config.LoadEntityFunc(ref)
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error fetching record: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to load entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(record)
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Converting record error to JSON: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to encode entity to JSON: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 }
 
 func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
+	const methodPrefix = "RestApiConfig.responseGetList: "
 	pageNo := 1
 	var err error
 	pageNoStr := r.URL.Query().Get(config.ParamPageNo)
@@ -251,7 +261,7 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 
 	records, total, err := config.SelectEntitiesFunc(filters, sorts, pageNo, pageSize)
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error fetching list: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to fetch list: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 
@@ -264,7 +274,7 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 	}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		SendHttpError(w, fmt.Sprintf("Error converting list to JSON: %v", err), http.StatusInternalServerError)
+		SendHttpError(w, fmt.Sprintf("%sfailed to encode list to JSON: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 }
