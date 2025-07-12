@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func SendHttpError(w http.ResponseWriter, message string, statusCode int) {
@@ -30,6 +31,7 @@ type RestApiConfig[T IEntity] struct {
 	ParamRef      string
 	ParamPageNo   string
 	ParamPageSize string
+	ParamSortBy   string
 }
 
 func CreateStdRestApiConfig[T IEntity](
@@ -55,6 +57,7 @@ func CreateStdRestApiConfig[T IEntity](
 		ParamRef:      "ref",
 		ParamPageNo:   "pageno",
 		ParamPageSize: "pagesize",
+		ParamSortBy:   "sortby",
 	}
 }
 
@@ -217,8 +220,34 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 		}
 	}
 
+	foundsSorts := make([]*SortItem, 0)
+
 	sorts := make([]*SortItem, 0)
 	sorts = append(sorts, &SortItem{Field: config.Def.RefField, Asc: true})
+
+	if sortBy := r.URL.Query().Get(config.ParamSortBy); sortBy != "" {
+		sortParts := strings.Split(sortBy, ",")
+		for _, token := range sortParts {
+			token = strings.ToLower(strings.TrimSpace(token))
+			if token == "" {
+				continue
+			}
+			parts := strings.Split(token, " ")
+			if len(parts) == 2 {
+				def := config.Def.FieldDefByName(parts[0])
+				if def != nil {
+					asc := true
+					if strings.ToLower(parts[1]) == "desc" {
+						asc = false
+					}
+					foundsSorts = append(foundsSorts, &SortItem{Field: def, Asc: asc})
+				}
+			}
+		}
+		if len(foundsSorts) > 0 {
+			sorts = foundsSorts
+		}
+	}
 
 	records, total, err := config.SelectEntitiesFunc(filters, sorts, pageNo, pageSize)
 	if err != nil {
