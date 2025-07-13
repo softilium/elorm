@@ -54,7 +54,7 @@ func (f *Factory) CommitTran(tx *sql.Tx) error {
 		if f.nestedTxLevel == 0 {
 			err := f.activeTx.Commit()
 			if err != nil {
-				f.RollbackTran(tx)
+				_ = f.RollbackTran(tx)
 			}
 			f.activeTx = nil
 			return err
@@ -425,7 +425,10 @@ func (T *Factory) FetchRowMap(rows *sql.Rows) (map[string]any, error) {
 					if itsRef {
 						r := &FieldValueRef{}
 						r.SetFactory(T)
-						r.Set(refStr)
+						err = r.Set(refStr)
+						if err != nil {
+							return nil, fmt.Errorf("Factory.FetchRowMap: error setting ref value: %w", err)
+						}
 						hm[c] = r
 					}
 				}

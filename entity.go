@@ -47,6 +47,19 @@ func (T *Entity) DataVersion() string {
 	return T.dataVersion.Get()
 }
 
+// Save persists the Entity to the database. It handles both insert and update operations
+// depending on whether the entity is new or existing. The method performs the following steps:
+//   - Executes the BeforeSaveHandler if defined.
+//   - Determines the SQL table and column names for the entity.
+//   - Begins a database transaction.
+//   - If the entity is new, inserts a new record into the database.
+//   - If the entity exists, updates the corresponding record, optionally performing
+//     data version checks to prevent concurrent modifications.
+//   - Commits the transaction if all operations succeed, or rolls back on error.
+//   - Executes the AfterSaveHandler if defined.
+//
+// Returns an error if any step fails, including handler execution, SQL operations,
+// or transaction management.
 func (T *Entity) Save() error {
 	var err error
 
@@ -236,7 +249,14 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for boolean field %s: %T", v.Def().Name, val)
 				}
 			case FieldDefTypeRef:
-				v.(*FieldValueRef).Set(val.(string))
+				stringVal, ok := val.(string)
+				if !ok {
+					return fmt.Errorf("Entity.LoadFromJSON: expected string for reference field %s, got %T", v.Def().Name, val)
+				}
+				err = v.(*FieldValueRef).Set(stringVal)
+				if err != nil {
+					return fmt.Errorf("Entity.LoadFromJSON: failed to set reference field %s: %w", v.Def().Name, err)
+				}
 			case FieldDefTypeDateTime:
 				strVal := strings.TrimSpace(val.(string))
 				tv, err := time.Parse(time.RFC3339, strVal)

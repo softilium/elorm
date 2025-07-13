@@ -3,6 +3,7 @@ package elorm
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func SendHttpError(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(statusCode)
-	w.Write([]byte(message))
+	_, _ = w.Write([]byte(html.EscapeString(message)))
 }
 
 type RestApiConfig[T IEntity] struct {
@@ -140,7 +141,11 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 		return
 	}
 
-	(*dbRecord).LoadFrom((*reqRecord), false)
+	err = (*dbRecord).LoadFrom((*reqRecord), false)
+	if err != nil {
+		SendHttpError(w, fmt.Sprintf("%sfailed to load data into entity: %v", methodPrefix, err), http.StatusInternalServerError)
+		return
+	}
 
 	err = (*dbRecord).Save()
 	if err != nil {
@@ -204,14 +209,14 @@ func responseGet[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 
 func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
 	const methodPrefix = "RestApiConfig.responseGetList: "
-	pageNo := 1
+	var pageNo int
 	var err error
 	pageNoStr := r.URL.Query().Get(config.ParamPageNo)
 	if pageNo, err = strconv.Atoi(pageNoStr); err != nil {
 		pageNo = 1
 	}
 
-	var pageSize int = config.DefaultPageSize
+	var pageSize int
 	pageSizeStr := r.URL.Query().Get(config.ParamPageSize)
 	if pageSize, err = strconv.Atoi(pageSizeStr); err != nil {
 		pageSize = config.DefaultPageSize
