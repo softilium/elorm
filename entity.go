@@ -183,11 +183,7 @@ func (T *Entity) Save() error {
 	err = T.Factory.CommitTran(tx)
 
 	T.isNew = false
-	if err == nil {
-		for _, v := range T.Values {
-			v.resetOld()
-		}
-	} else {
+	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to commit transaction: %w", err)
 	}
 
@@ -197,6 +193,11 @@ func (T *Entity) Save() error {
 		}
 	}
 
+	for _, v := range T.Values {
+		v.resetOld()
+	}
+	T.isNew = false
+	T.Factory.loadedEntities.Add(T.RefString(), T)
 	return nil
 }
 
