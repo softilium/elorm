@@ -42,6 +42,11 @@ func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
+
+	if v2.IsZero() {
+		return "NULL", nil
+	}
+
 	return fmt.Sprintf("'%s'", v2.Format(time.DateTime)), nil
 }
 
@@ -51,7 +56,9 @@ func (T *FieldValueDateTime) AsString() string {
 
 func (T *FieldValueDateTime) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("fieldValueDateTime.Scan: nil value for field %s", T.def.Name)
+		T.v = time.Time{}
+		T.old = T.v
+		return nil
 	}
 	switch vtyped := v.(type) {
 	case time.Time:

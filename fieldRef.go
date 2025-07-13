@@ -28,6 +28,12 @@ func (T *FieldValueRef) Set(newValue any) error {
 		}
 	}
 
+	if stringValue == "" {
+		T.v = ""
+		T.isDirty = T.isDirty || stringValue != T.v
+		return nil
+	}
+
 	if T.factory == nil {
 		return fmt.Errorf("FieldValueRef.Set: missing factory")
 	}
