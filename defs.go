@@ -307,27 +307,28 @@ type IndexDef struct {
 }
 
 type EntityHandlerFunc func(entity any) error      // we should instantiate entity before calling this handler
-type EntityByRefHandlerFunc func(ref string) error // we can call this handler without instantiating entity, just by reference for better performance
+type EntityHandlerFuncByRef func(ref string) error // we can call this handler without instantiating entity, just by reference for better performance
 
 type EntityDef struct {
 	Factory              *Factory
 	DataVersionCheckMode int // DataVersionCheckNever, DataVersionCheckDefault, DataVersionCheckAlways
 	ObjectName           string
 	TableName            string
+	Fragments            []string // fragments are used to define reusable parts of entity definitions
 	FieldDefs            []*FieldDef
 	IndexDefs            []*IndexDef
 	RefField             *FieldDef
 	IsDeletedField       *FieldDef                // field for soft delete
 	DataVersionField     *FieldDef                // field for data versioning
-	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom one
+	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom struct
 
-	FillNewHandler           EntityHandlerFunc
-	BeforeSaveHandler        EntityHandlerFunc
-	AfterSaveHandler         EntityHandlerFunc
-	BeforeDeleteHandler      EntityHandlerFunc
-	BeforeSaveHandlerByRef   EntityByRefHandlerFunc
-	AfterSaveHandlerByRef    EntityByRefHandlerFunc
-	BeforeDeleteHandlerByRef EntityByRefHandlerFunc
+	fillNewHandlers           []EntityHandlerFunc
+	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
+	beforeSaveHandlers        []EntityHandlerFunc
+	afterSaveHandlerByRefs    []EntityHandlerFuncByRef
+	afterSaveHandlers         []EntityHandlerFunc
+	beforeDeleteHandlerByRefs []EntityHandlerFuncByRef
+	beforeDeleteHandlers      []EntityHandlerFunc
 }
 
 func (T *EntityDef) FieldDefByName(name string) *FieldDef {

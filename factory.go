@@ -3,6 +3,7 @@ package elorm
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,6 +21,80 @@ type Factory struct {
 	//for sqlite
 	activeTx      *sql.Tx // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
 	nestedTxLevel int     // Used to track nested transactions, so we can commit or rollback correctly.
+}
+
+func addHandler[ht any](
+	f *Factory, dest any, handler ht, errPrefix string,
+	getter func(def *EntityDef) []ht,
+	setter func(def *EntityDef, newValue []ht)) error {
+	if dest == nil {
+		return fmt.Errorf("%s: dest is nil", errPrefix)
+	}
+	switch v := dest.(type) {
+	case *EntityDef: // particular entity def
+		if getter(v) == nil {
+			setter(v, make([]ht, 0))
+		}
+		setter(v, append(getter(v), handler))
+	case string: // fragment name
+		found := false
+		for _, def := range f.EntityDefs {
+			if slices.Contains(def.Fragments, v) {
+				if getter(def) == nil {
+					setter(def, make([]ht, 0))
+				}
+				setter(def, append(getter(def), handler))
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s: no entity types for fragment %s", errPrefix, v)
+		}
+	default:
+		return fmt.Errorf("%s: unsupported destination type %T", errPrefix, dest)
+	}
+	return nil
+}
+
+func (f *Factory) AddFillNewHandler(dest any, handler EntityHandlerFunc) error {
+	return addHandler(f, dest, handler, "AddFillNewHandler",
+		func(def *EntityDef) []EntityHandlerFunc { return def.fillNewHandlers },
+		func(def *EntityDef, newValue []EntityHandlerFunc) { def.fillNewHandlers = newValue })
+}
+
+func (f *Factory) AddBeforeSaveHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
+	return addHandler(f, dest, handler, "AddBeforeSaveHandlerByRef",
+		func(def *EntityDef) []EntityHandlerFuncByRef { return def.beforeSaveHandlerByRefs },
+		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.beforeSaveHandlerByRefs = newValue })
+}
+
+func (f *Factory) AddBeforeSaveHandler(dest any, handler EntityHandlerFunc) error {
+	return addHandler(f, dest, handler, "AddBeforeSaveHandler",
+		func(def *EntityDef) []EntityHandlerFunc { return def.beforeSaveHandlers },
+		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeSaveHandlers = newValue })
+}
+
+func (f *Factory) AddAfterSaveHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
+	return addHandler(f, dest, handler, "AddAfterSaveHandlerByRef",
+		func(def *EntityDef) []EntityHandlerFuncByRef { return def.afterSaveHandlerByRefs },
+		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.afterSaveHandlerByRefs = newValue })
+}
+
+func (f *Factory) AddAfterSaveHandler(dest any, handler EntityHandlerFunc) error {
+	return addHandler(f, dest, handler, "AddAfterSaveHandler",
+		func(def *EntityDef) []EntityHandlerFunc { return def.afterSaveHandlers },
+		func(def *EntityDef, newValue []EntityHandlerFunc) { def.afterSaveHandlers = newValue })
+}
+
+func (f *Factory) AddBeforeDeleteHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
+	return addHandler(f, dest, handler, "AddBeforeDeleteHandlerByRef",
+		func(def *EntityDef) []EntityHandlerFuncByRef { return def.beforeDeleteHandlerByRefs },
+		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.beforeDeleteHandlerByRefs = newValue })
+}
+
+func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) error {
+	return addHandler(f, dest, handler, "AddBeforeDeleteHandler",
+		func(def *EntityDef) []EntityHandlerFunc { return def.beforeDeleteHandlers },
+		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeDeleteHandlers = newValue })
 }
 
 func (f *Factory) BeginTran() (*sql.Tx, error) {
@@ -241,8 +316,9 @@ func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 
 	T.loadedEntities.Add(r.RefString(), r)
 
-	if def.FillNewHandler != nil {
-		if err := def.FillNewHandler(r.entityDef.Wrap(r)); err != nil {
+	for _, handler := range def.fillNewHandlers {
+		err := handler(r.entityDef.Wrap(r))
+		if err != nil {
 			return nil, fmt.Errorf("Factory.CreateEntity: fillNewHandler failed: %w", err)
 		}
 	}
@@ -456,26 +532,26 @@ func (T *Factory) DeleteEntity(ref string) error {
 		return fmt.Errorf("Factory.DeleteEntity: failed to begin transaction: %w", err)
 	}
 
-	if def.BeforeDeleteHandlerByRef != nil {
-		err := def.BeforeDeleteHandlerByRef(ref)
+	// before delete handlers
+	for _, handler := range def.beforeDeleteHandlerByRefs {
+		err := handler(ref)
 		if err != nil {
 			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandlerByRef failed: %w", err)
 		}
 	}
-
-	if def.BeforeDeleteHandler != nil {
-
+	if len(def.beforeDeleteHandlers) > 0 {
 		loaded, err := T.LoadEntity(ref)
 		if err != nil {
 			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: failed to load entity for deletion (for running BeforeDeleteHandler): %w", err)
 		}
-
-		err = def.BeforeDeleteHandler(loaded)
-		if err != nil {
-			_ = T.RollbackTran(tx)
-			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandler failed: %w", err)
+		for _, handler := range def.beforeDeleteHandlers {
+			err = handler(loaded)
+			if err != nil {
+				_ = T.RollbackTran(tx)
+				return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandler failed: %w", err)
+			}
 		}
 	}
 

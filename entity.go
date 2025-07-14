@@ -68,9 +68,15 @@ func (T *Entity) Save() error {
 		dvCheck = T.Factory.dataVersionCheckMode
 	}
 
-	if T.entityDef.BeforeSaveHandler != nil {
-		if err := T.entityDef.BeforeSaveHandler(T.entityDef.Wrap(T)); err != nil {
-			return fmt.Errorf("Entity.Save: beforeSaveHandler failed: %w", err)
+	// before save handlers
+	for _, hndl := range T.entityDef.beforeSaveHandlerByRefs {
+		if err := hndl(T.RefString()); err != nil {
+			return fmt.Errorf("Entity.Save: beforeSaveHandlerByRef failed for ref %s: %w", T.ref.AsString(), err)
+		}
+	}
+	for _, hndl := range T.entityDef.beforeSaveHandlers {
+		if err := hndl(T.entityDef.Wrap(T)); err != nil {
+			return fmt.Errorf("Entity.Save: beforeSaveHandler failed for ref %s: %w", T.ref.AsString(), err)
 		}
 	}
 
@@ -187,9 +193,15 @@ func (T *Entity) Save() error {
 		return fmt.Errorf("Entity.Save: failed to commit transaction: %w", err)
 	}
 
-	if T.entityDef.AfterSaveHandler != nil {
-		if err := T.entityDef.AfterSaveHandler(T.entityDef.Wrap(T)); err != nil {
-			return fmt.Errorf("Entity.Save: afterSaveHandler failed: %w", err)
+	// after save handlers
+	for _, handler := range T.entityDef.afterSaveHandlerByRefs {
+		if err := handler(T.RefString()); err != nil {
+			return fmt.Errorf("Entity.Save: afterSaveHandlerByRef failed for ref %s: %w", T.ref.AsString(), err)
+		}
+	}
+	for _, handler := range T.entityDef.afterSaveHandlers {
+		if err := handler(T.entityDef.Wrap(T)); err != nil {
+			return fmt.Errorf("Entity.Save: afterSaveHandler failed for ref %s: %w", T.RefString(), err)
 		}
 	}
 
