@@ -33,12 +33,12 @@ func (T *FieldValueBool) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(bool)
 		if !ok {
-			return "", fmt.Errorf("fieldValueBool.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueBool.SqlStringValue: expected bool value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("fieldValueBool.SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("FieldValueBool.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	switch T.def.EntityDef.Factory.dbDialect {
 	case DbDialectPostgres, DbDialectSQLite:
@@ -52,7 +52,7 @@ func (T *FieldValueBool) SqlStringValue(v ...any) (string, error) {
 		}
 		return "0", nil
 	default:
-		return "", fmt.Errorf("fieldValueBool.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
+		return "", fmt.Errorf("FieldValueBool.SqlStringValue: unknown database type %d for field %s", T.def.EntityDef.Factory.dbDialect, T.def.Name)
 	}
 }
 

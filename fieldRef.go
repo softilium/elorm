@@ -81,7 +81,7 @@ func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(string)
 		if !ok {
-			return "", fmt.Errorf("FieldValueRef.SqlStringValue: type assertion failed: expected string value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueRef.SqlStringValue: expected string value for field %s, got %T", T.def.Name, v)
 		}
 	}
 

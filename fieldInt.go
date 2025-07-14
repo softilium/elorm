@@ -33,12 +33,12 @@ func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(int64)
 		if !ok {
-			return "", fmt.Errorf("fieldValueInt.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueInt.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("fieldValueInt.SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("FieldValueInt.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 	return fmt.Sprintf("%d", v2), nil
 }

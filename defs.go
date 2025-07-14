@@ -3,7 +3,6 @@ package elorm
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 const (
@@ -46,63 +45,52 @@ type FieldDef struct {
 	Len       int //for string
 	Precision int //for numeric
 	Scale     int //for numeric
-	DefValue  any
 }
 
 func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {
 	switch T.Type {
 	case FieldDefTypeString:
-		x := &FieldValueString{v: T.DefValue.(string)}
+		x := &FieldValueString{}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case FieldDefTypeInt:
-		x := &FieldValueInt{v: T.DefValue.(int64)}
+		x := &FieldValueInt{}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case FieldDefTypeBool:
-		x := &FieldValueBool{v: T.DefValue.(bool)}
+		x := &FieldValueBool{}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case FieldDefTypeRef:
 		x := &FieldValueRef{factory: T.EntityDef.Factory}
-		vt, ok := T.DefValue.(string)
-		if ok {
-			x.v = vt
-		}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case FieldDefTypeNumeric:
-		x := &FieldValueNumeric{v: T.DefValue.(float64)}
+		x := &FieldValueNumeric{}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	case FieldDefTypeDateTime:
 		x := &FieldValueDateTime{}
-		tv, ok := T.DefValue.(time.Time)
-		if ok {
-			x.v = tv
-		}
 		x.entity = entity
 		x.def = T
 		return x, nil
 	default:
-		return nil, fmt.Errorf("fieldDef.CreateFieldValue: unknown field type %d for field %s", T.Type, T.Name)
+		return nil, fmt.Errorf("FieldDef.CreateFieldValue: unknown field type %d for field %s", T.Type, T.Name)
 	}
 }
 
 func (T *FieldDef) SqlColumnName() (string, error) {
-
 	switch T.EntityDef.Factory.dbDialect {
 	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
 		return strings.ToLower(T.Name), nil
 	default:
-		return "", fmt.Errorf("fieldDef.SqlColumnName: Unknown database type")
+		return "", fmt.Errorf("FieldDef.SqlColumnName: Unknown database type")
 	}
-
 }
 
 func (T *FieldDef) SqlColumnType() (string, error) {
@@ -117,7 +105,7 @@ func (T *FieldDef) SqlColumnType() (string, error) {
 	case DbDialectSQLite:
 		return T.sqlColumnTypeSQLite()
 	default:
-		return "", fmt.Errorf("fieldDef.SqlColumnType: unknown database type %d", dialect)
+		return "", fmt.Errorf("FieldDef.SqlColumnType: unknown database type %d", dialect)
 	}
 }
 
@@ -219,7 +207,6 @@ func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*
 		Name:      name,
 		Type:      FieldDefTypeString,
 		Len:       size,
-		DefValue:  defValue,
 	}
 	T.FieldDefs = append(T.FieldDefs, nr)
 	return nr, nil
@@ -233,7 +220,6 @@ func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*FieldDef, erro
 		EntityDef: T,
 		Name:      name,
 		Type:      FieldDefTypeBool,
-		DefValue:  defValue,
 	}
 
 	T.FieldDefs = append(T.FieldDefs, nr)
@@ -262,7 +248,6 @@ func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*FieldDef, erro
 		EntityDef: T,
 		Name:      name,
 		Type:      FieldDefTypeInt,
-		DefValue:  defValue,
 	}
 
 	T.FieldDefs = append(T.FieldDefs, nr)
@@ -290,7 +275,6 @@ func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, De
 	nr := &FieldDef{
 		Name:      name,
 		Type:      FieldDefTypeNumeric,
-		DefValue:  DefValue,
 		Precision: Precision,
 		Scale:     Scale,
 		EntityDef: T,
@@ -506,7 +490,7 @@ func (T *EntityDef) ensureDBStructure() error {
 					return fmt.Errorf("EntityDef.ensureDBStructure: failed to add column %s: %w", coln, err)
 				}
 			}
-			rows.Close()
+			_ = rows.Close()
 		}
 		err = T.Factory.CommitTran(tran)
 		if err != nil {
@@ -565,7 +549,6 @@ func (T *EntityDef) ensureDBStructure() error {
 					}
 				}
 			}
-			rows.Close()
 			if !colExists {
 				_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
 				if err != nil {

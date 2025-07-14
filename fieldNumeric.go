@@ -39,7 +39,7 @@ func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(float64)
 		if !ok {
-			return "", fmt.Errorf("FieldValueNumeric.SqlStringValue: type assertion failed: expected float64 value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueNumeric.SqlStringValue: expected float64 value for field %s, got %T", T.def.Name, v)
 		}
 	}
 

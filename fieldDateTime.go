@@ -35,12 +35,12 @@ func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(time.Time)
 		if !ok {
-			return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: expected time.Time value for field %s, got %T", T.def.Name, v)
+			return "", fmt.Errorf("FieldValueDateTime.SqlStringValue: expected time.Time value for field %s, got %T", T.def.Name, v)
 		}
 	}
 
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
-		return "", fmt.Errorf("fieldValueDateTime.SqlStringValue: missing definition or factory for field %s", T.def.Name)
+		return "", fmt.Errorf("FieldValueDateTime.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
 
 	if v2.IsZero() {
