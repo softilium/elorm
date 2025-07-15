@@ -10,6 +10,19 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
+const (
+	DbDialectPostgres = 100
+	DbDialectMSSQL    = 200
+	DbDialectMySQL    = 300
+	DbDialectSQLite   = 400
+)
+
+const (
+	DataVersionCheckNever   = -1
+	DataVersionCheckDefault = 0
+	DataVersionCheckAlways  = 1
+)
+
 type Factory struct {
 	dbDialect              int
 	DB                     *sql.DB

@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+const refSplitter = "$$"
+const refFieldLength = 107 // length of Ref field in characters, used for string representation of references
+
 type FieldValueRef struct {
 	fieldValueBase
 	factory *Factory
