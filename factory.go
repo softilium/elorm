@@ -25,7 +25,7 @@ const (
 
 type Factory struct {
 	dbDialect              int
-	DB                     *sql.DB
+	db                     *sql.DB
 	EntityDefs             []*EntityDef
 	loadedEntities         *expirable.LRU[string, *Entity]
 	dataVersionCheckMode   int
@@ -113,11 +113,11 @@ func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) er
 func (f *Factory) BeginTran() (*sql.Tx, error) {
 
 	if f.dbDialect != DbDialectSQLite {
-		return f.DB.Begin()
+		return f.db.Begin()
 	}
 
 	if f.nestedTxLevel == 0 {
-		newTx, err := f.DB.Begin()
+		newTx, err := f.db.Begin()
 		if err != nil {
 			return nil, fmt.Errorf("Factory.BeginTran: failed to begin transaction: %w", err)
 		}
@@ -156,9 +156,19 @@ func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
 		if f.nestedTxLevel > 0 {
 			return f.activeTx.Query(query, args...)
 		}
-		return f.DB.Query(query, args...)
+		return f.db.Query(query, args...)
 	}
-	return f.DB.Query(query, args...)
+	return f.db.Query(query, args...)
+}
+
+func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
+	if f.dbDialect == DbDialectSQLite {
+		if f.nestedTxLevel > 0 {
+			return f.activeTx.Exec(query, args...)
+		}
+		return f.db.Exec(query, args...)
+	}
+	return f.db.Exec(query, args...)
 }
 
 func (f *Factory) RollbackTran(tx *sql.Tx) error {
@@ -204,12 +214,12 @@ func CreateFactory(dbDialect string, connectionString string) (*Factory, error) 
 		AggressiveReadingCache: false,
 	}
 	var err error
-	r.DB, err = sql.Open(dbDialect, connectionString)
+	r.db, err = sql.Open(dbDialect, connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("Factory.CreateFactory: failed to open DB: %w", err)
 	}
 
-	err = r.DB.Ping()
+	err = r.db.Ping()
 	if err != nil {
 		return nil, fmt.Errorf("Factory.CreateFactory: failed to ping DB: %w", err)
 	}
@@ -378,7 +388,7 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 	if ok {
 		if !T.AggressiveReadingCache && dvcm != DataVersionCheckNever {
 
-			row := T.DB.QueryRow(fmt.Sprintf("select 1 from %s where Ref=%s and DataVersion=%s", tableName, Ref, fromCache.DataVersion()))
+			row := T.db.QueryRow(fmt.Sprintf("select 1 from %s where Ref=%s and DataVersion=%s", tableName, Ref, fromCache.DataVersion()))
 			var scanBuffer *int
 			if row.Scan(scanBuffer) == sql.ErrNoRows {
 				// The entity is not in the database or it changed, so we need to reload it.
@@ -619,7 +629,7 @@ func (T *Factory) createRefColumnType() error {
 			return fmt.Errorf("Factory.createRefColumnType: failed to get ref column type: %w", err)
 		}
 
-		row, err := T.DB.Query("select count(*) as cnt from pg_type where typname=$1", refObjIdDomain)
+		row, err := T.db.Query("select count(*) as cnt from pg_type where typname=$1", refObjIdDomain)
 		if err != nil {
 			return fmt.Errorf("Factory.createRefColumnType: failed to query pg_type: %w", err)
 		}
@@ -637,7 +647,7 @@ func (T *Factory) createRefColumnType() error {
 
 		if cnt == 0 {
 
-			_, err = T.DB.Exec(fmt.Sprintf("create domain %s as varchar(%d)", refObjIdDomain, refFieldLength))
+			_, err = T.Exec(fmt.Sprintf("create domain %s as varchar(%d)", refObjIdDomain, refFieldLength))
 			if err != nil {
 				return fmt.Errorf("Factory.createRefColumnType: failed to create domain: %w", err)
 			}
@@ -651,13 +661,13 @@ func (T *Factory) createRefColumnType() error {
 			return fmt.Errorf("Factory.createRefColumnType: failed to get ref column type: %w", err)
 		}
 		var cnt int
-		row := T.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM sys.types WHERE name = '%s'", refObjIdDomain))
+		row := T.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM sys.types WHERE name = '%s'", refObjIdDomain))
 		err = row.Scan(&cnt)
 		if err != nil {
 			return fmt.Errorf("Factory.createRefColumnType: failed to query sys.types: %w", err)
 		}
 		if cnt == 0 {
-			_, err = T.DB.Exec(fmt.Sprintf("CREATE TYPE %s FROM nvarchar(%d)", refObjIdDomain, refFieldLength))
+			_, err = T.Exec(fmt.Sprintf("CREATE TYPE %s FROM nvarchar(%d)", refObjIdDomain, refFieldLength))
 			if err != nil {
 				return fmt.Errorf("Factory.createRefColumnType: failed to create type: %w", err)
 			}
