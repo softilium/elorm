@@ -8,8 +8,8 @@ Elorm implements a set of ideas from my business application engineering experie
 
 - **Globally unique, human-readable sequential ID** for records/entities. This ID should be globally unique, sequential across all used databases, and should act as a URL for a particular entity. For better handling of database indexes, the ID should be sortable in order of creation, like autoincrement numbers.
 - **Define all entities declaratively** using a JSON entity declaration. elorm-gen processes it into strongly-typed structs and methods, ready to use in applications.
-- **Shared parts of entities - fragments**. Set of fields plus event handlers could be defined fo fragments. Each entity can include any cound of fragments and inherid fields and handlers.
-- **Handle migrations automatically**. It should be possible to upgrade from any old version to any new one. Developers don't need to register each schema change as a separate migration. Of course, developers can run their own code as part of this migration.
+- **Shared parts of entities - fragments**. Set of fields, indexes and event handlers. Each entity can include any cound of fragments and inherid fields, indexes and event handlers.
+- **Handle migrations automatically**. It should be possible to upgrade from any version to any. Developers don't need to register each schema change as a separate migration. Of course, developers can run their own code as part of this migration. It works for both tables and indexes definitions.
 - **Core entity with basic functionality (loading, saving, caching, etc.)**. Application entities must be based on it.
 - **Lazy load navigation properties**. It retrieves a referenced record on first access to the navigation property, from cache or from the database. You can have many navigation properties without impacting performance.
 - **Global entity cache** to track all loaded/created entities and reduce redundant queries to the database. Of course, you can tune cache size to balance between speed and memory for your application.
