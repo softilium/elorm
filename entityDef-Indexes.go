@@ -380,6 +380,19 @@ func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
 	if T.IndexDefs == nil {
 		T.IndexDefs = make([]*IndexDef, 0)
 	}
+	if len(fld) == 1 && fld[0].Name == RefFieldName {
+		return fmt.Errorf("EntityDef.AddIndex: cannot create index on reference field %s (it is already indexed as primary key)", RefFieldName)
+	}
+
+	idxAsStr := func(idx IndexDef) string {
+		buf := make([]string, 0)
+		for _, v := range idx.FieldDefs {
+			buf = append(buf, v.Name)
+		}
+		slices.Sort(buf)
+		return strings.Join(buf, ",")
+	}
+
 	newIndex := &IndexDef{Unique: Unique, FieldDefs: make([]*FieldDef, 0)}
 	for _, v := range fld {
 		if T.FieldDefByName(v.Name) == nil {
@@ -387,6 +400,13 @@ func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
 		}
 		newIndex.FieldDefs = append(newIndex.FieldDefs, &v)
 	}
+
+	for _, v := range T.IndexDefs {
+		if idxAsStr(*v) == idxAsStr(*newIndex) {
+			return fmt.Errorf("EntityDef.AddIndex: index with fields %s already exists for entity %s", idxAsStr(*newIndex), T.ObjectName)
+		}
+	}
+
 	T.IndexDefs = append(T.IndexDefs, newIndex)
 	return nil
 }
