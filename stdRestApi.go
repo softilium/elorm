@@ -17,7 +17,7 @@ func SendHttpError(w http.ResponseWriter, message string, statusCode int) {
 type RestApiConfig[T IEntity] struct {
 	Def                EntityDef
 	LoadEntityFunc     func(ref string) (*T, error)
-	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pages int, err error)
+	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pagesCount int, err error)
 	CreateEntityFunc   func() (*T, error)
 	AdditionalHeaders  map[string]string
 	AutoFilters        bool
@@ -264,18 +264,18 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 		}
 	}
 
-	records, total, err := config.SelectEntitiesFunc(filters, sorts, pageNo, pageSize)
+	records, pagesCount, err := config.SelectEntitiesFunc(filters, sorts, pageNo, pageSize)
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("%sfailed to fetch list: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 
 	response := struct {
-		Data  []*T
-		Total int
+		Data       []*T
+		PagesCount int
 	}{
-		Data:  records,
-		Total: total,
+		Data:       records,
+		PagesCount: pagesCount,
 	}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {

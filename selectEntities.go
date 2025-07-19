@@ -178,12 +178,13 @@ type SortItem struct {
 	Asc   bool
 }
 
-func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*Entity, pages int, err error) {
+func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*Entity, pagesCount int, err error) {
 	if filters == nil {
 		filters = []*Filter{}
 	}
 	if sorts == nil {
-		sorts = []*SortItem{}
+		// sort by ref by default
+		sorts = []*SortItem{{Field: T.RefField, Asc: true}}
 	}
 	if pageNo < 0 || pageSize < 0 {
 		return nil, 0, fmt.Errorf("EntityDef.SelectEntities: invalid pageNo or pageSize")
@@ -192,7 +193,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		return nil, 0, fmt.Errorf("EntityDef.SelectEntities: pagination is only supported with sorting")
 	}
 	result = make([]*Entity, 0)
-	pages = 0
+	pagesCount = 0
 	getSql := func(totals bool) (string, error) {
 		var builder strings.Builder
 		fields := ""
@@ -269,12 +270,12 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 
 	query, err := getSql(false)
 	if err != nil {
-		return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to get SQL query: %w", err)
+		return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to get SQL query: %w", err)
 	}
 
 	rows, err := T.Factory.Query(query)
 	if err != nil {
-		return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to execute query '%s': %w", query, err)
+		return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to execute query '%s': %w", query, err)
 	}
 	defer rows.Close()
 
@@ -282,14 +283,14 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	for rows.Next() {
 		res, err := T.Factory.CreateEntity(T)
 		if err != nil {
-			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to create entity: %w", err)
+			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to create entity: %w", err)
 		}
 		for i, v := range T.FieldDefs {
 			fp[i] = res.Values[v.Name].(any)
 		}
 		err = rows.Scan(fp...)
 		if err != nil {
-			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to scan row: %w", err)
+			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to scan row: %w", err)
 		}
 		res.isNew = false
 		T.Factory.loadedEntities.Add(res.RefString(), res)
@@ -299,23 +300,23 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	if pageNo > 0 && pageSize > 0 {
 		countQuery, err := getSql(true)
 		if err != nil {
-			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to get count SQL query: %w", err)
+			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to get count SQL query: %w", err)
 		}
 		countRows, err := T.Factory.Query(countQuery)
 		if err != nil {
-			return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to execute count query '%s': %w", countQuery, err)
+			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to execute count query '%s': %w", countQuery, err)
 		}
 		defer countRows.Close()
 		if countRows.Next() {
-			err = countRows.Scan(&pages)
+			err = countRows.Scan(&pagesCount)
 			if err != nil {
-				return result, pages, fmt.Errorf("EntityDef.SelectEntities: failed to scan count row: %w", err)
+				return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to scan count row: %w", err)
 			}
-			pages = (pages + pageSize - 1) / pageSize // calculate total pages
+			pagesCount = (pagesCount + pageSize - 1) / pageSize // calculate total pages
 		} else {
-			return result, pages, fmt.Errorf("EntityDef.SelectEntities: no rows returned for count query '%s'", countQuery)
+			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: no rows returned for count query '%s'", countQuery)
 		}
 	}
 
-	return result, pages, nil
+	return result, pagesCount, nil
 }
