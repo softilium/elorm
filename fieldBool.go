@@ -65,19 +65,20 @@ func (T *FieldValueBool) AsString() string {
 
 func (T *FieldValueBool) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("fieldValueBool.Scan: nil value for field %s", T.def.Name)
-	}
-	switch vtyped := v.(type) {
-	case bool:
-		T.v = vtyped
-	case int64:
-		if vtyped == 0 {
-			T.v = false
-		} else {
-			T.v = true
+		T.v = false
+	} else {
+		switch vtyped := v.(type) {
+		case bool:
+			T.v = vtyped
+		case int64:
+			if vtyped == 0 {
+				T.v = false
+			} else {
+				T.v = true
+			}
+		default:
+			return fmt.Errorf("fieldValueBool.Scan: expected bool or int64 for field %s, got %T", T.def.Name, v)
 		}
-	default:
-		return fmt.Errorf("fieldValueBool.Scan: expected bool or int64 for field %s, got %T", T.def.Name, v)
 	}
 	T.isDirty = false
 	T.old = T.v
