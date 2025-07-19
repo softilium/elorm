@@ -13,6 +13,8 @@ type IEntity interface {
 	IsNew() bool
 	Save() error
 	LoadFrom(src IEntity, predefinedFields bool) error
+	GetValues() map[string]IFieldValue
+	Def() *EntityDef
 }
 
 type Entity struct {
@@ -25,6 +27,13 @@ type Entity struct {
 	dataVersion *FieldValueString
 
 	isNew bool
+}
+
+func (T *Entity) Def() *EntityDef {
+	return T.entityDef
+}
+func (T *Entity) GetValues() map[string]IFieldValue {
+	return T.Values
 }
 
 func (T *Entity) RefString() string {
@@ -216,7 +225,24 @@ func (T *Entity) Save() error {
 func (T *Entity) MarshalJSON() ([]byte, error) {
 	vm := make(map[string]any, len(T.Values))
 	for _, v := range T.Values {
-		vm[v.Def().Name] = v.AsString()
+
+		switch vt := v.(type) {
+		case *FieldValueString:
+			vm[v.Def().Name] = vt.v
+		case *FieldValueInt:
+			vm[v.Def().Name] = vt.v
+		case *FieldValueBool:
+			vm[v.Def().Name] = vt.v
+		case *FieldValueRef:
+			vm[v.Def().Name] = vt.v
+		case *FieldValueDateTime:
+			vm[v.Def().Name] = vt.v.Format(time.RFC3339)
+		case *FieldValueNumeric:
+			vm[v.Def().Name] = vt.v
+		default:
+			return nil, fmt.Errorf("Entity.MarshalJSON: unsupported field type %d for field %s", v.Def().Type, v.Def().Name)
+		}
+
 	}
 	return json.Marshal(vm)
 }
@@ -242,6 +268,8 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 					v.(*FieldValueInt).Set(int64(val.(int)))
 				case int64:
 					v.(*FieldValueInt).Set(val.(int64))
+				case float64:
+					v.(*FieldValueInt).Set(int64(val.(float64)))
 				case string:
 					valInt, err := strconv.ParseInt(strings.TrimSpace(val.(string)), 10, 64)
 					if err != nil {
@@ -311,16 +339,13 @@ func (T *Entity) LoadFrom(src IEntity, predefinedFields bool) error {
 		return fmt.Errorf("Entity.LoadFrom: source entity is nil")
 	}
 
-	srcT, ok := src.(*Entity)
-	if !ok {
-		return fmt.Errorf("Entity.LoadFrom: source entity is not of type *EntityDef")
-	}
-
-	if T.entityDef != srcT.entityDef {
+	if T.entityDef != src.Def() {
 		return fmt.Errorf("Entity.LoadFrom: source entity has different definition")
 	}
 
-	for idx, v := range T.Values {
+	vals := src.GetValues()
+
+	for idx, v := range vals {
 
 		if !predefinedFields && (v.Def().Name == RefFieldName || v.Def().Name == DataVersionFieldName) {
 			continue
@@ -328,17 +353,17 @@ func (T *Entity) LoadFrom(src IEntity, predefinedFields bool) error {
 		switch ft := T.Values[idx].(type) {
 
 		case *FieldValueString:
-			ft.v = srcT.Values[idx].(*FieldValueString).v
+			ft.v = vals[idx].(*FieldValueString).v
 		case *FieldValueInt:
-			ft.v = srcT.Values[idx].(*FieldValueInt).v
+			ft.v = vals[idx].(*FieldValueInt).v
 		case *FieldValueBool:
-			ft.v = srcT.Values[idx].(*FieldValueBool).v
+			ft.v = vals[idx].(*FieldValueBool).v
 		case *FieldValueRef:
-			ft.v = srcT.Values[idx].(*FieldValueRef).v
+			ft.v = vals[idx].(*FieldValueRef).v
 		case *FieldValueDateTime:
-			ft.v = srcT.Values[idx].(*FieldValueDateTime).v
+			ft.v = vals[idx].(*FieldValueDateTime).v
 		case *FieldValueNumeric:
-			ft.v = srcT.Values[idx].(*FieldValueNumeric).v
+			ft.v = vals[idx].(*FieldValueNumeric).v
 		}
 	}
 

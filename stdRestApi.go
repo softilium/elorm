@@ -33,6 +33,8 @@ type RestApiConfig[T IEntity] struct {
 	ParamPageNo   string
 	ParamPageSize string
 	ParamSortBy   string
+
+	BeforeMiddleware func(http.ResponseWriter, *http.Request) bool
 }
 
 const DefaultPageSize = 20
@@ -67,6 +69,13 @@ func CreateStdRestApiConfig[T IEntity](
 func HandleRestApi[T IEntity](config RestApiConfig[T]) func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		if config.BeforeMiddleware != nil {
+			if !config.BeforeMiddleware(w, r) {
+				return
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		if len(config.AdditionalHeaders) > 0 {
 			for key, value := range config.AdditionalHeaders {
