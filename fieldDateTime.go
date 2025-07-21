@@ -64,11 +64,16 @@ func (T *FieldValueDateTime) Scan(v any) error {
 	case time.Time:
 		T.v = vtyped
 	case []uint8:
-		parsedTime, err := time.Parse(time.DateTime, string(vtyped))
-		if err != nil {
-			return fmt.Errorf("fieldValueDateTime.Scan: failed to parse time from []uint8 for field %s: %v", T.def.Name, err)
+		vt2 := string(vtyped)
+		if vt2 == "infinity" || vt2 == "-infinity" { //sqlite
+			T.v = time.Time{}
+		} else {
+			parsedTime, err := time.Parse(time.DateTime, vt2)
+			if err != nil {
+				return fmt.Errorf("fieldValueDateTime.Scan: failed to parse time from []uint8 for field %s: %v", T.def.Name, err)
+			}
+			T.v = parsedTime
 		}
-		T.v = parsedTime
 	default:
 		return fmt.Errorf("fieldValueDateTime.Scan: expected time.Time or []uint8 for field %s, got %T", T.def.Name, v)
 	}

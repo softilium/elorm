@@ -1,6 +1,7 @@
 package elorm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -35,6 +36,7 @@ type RestApiConfig[T IEntity] struct {
 	ParamSortBy   string
 
 	BeforeMiddleware func(http.ResponseWriter, *http.Request) bool
+	Context          func(r *http.Request) context.Context
 }
 
 const DefaultPageSize = 20
@@ -156,7 +158,11 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 		return
 	}
 
-	err = (*dbRecord).Save()
+	ctx := r.Context()
+	if config.Context != nil {
+		ctx = config.Context(r)
+	}
+	err = (*dbRecord).Save(ctx)
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -177,7 +183,11 @@ func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *
 		return
 	}
 
-	err = (*newRecord).Save()
+	ctx := r.Context()
+	if config.Context != nil {
+		ctx = config.Context(r)
+	}
+	err = (*newRecord).Save(ctx)
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -188,7 +198,12 @@ func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r
 	const methodPrefix = "RestApiConfig.responseDelete: "
 	if r.URL.Query().Has(config.ParamRef) {
 		ref := r.URL.Query().Get(config.ParamRef)
-		err := config.Def.Factory.DeleteEntity(ref)
+
+		ctx := r.Context()
+		if config.Context != nil {
+			ctx = config.Context(r)
+		}
+		err := config.Def.Factory.DeleteEntity(ctx, ref)
 		if err != nil {
 			SendHttpError(w, fmt.Sprintf("%sfailed to delete entity: %v", methodPrefix, err), http.StatusNotFound)
 			return

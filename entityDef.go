@@ -1,6 +1,7 @@
 package elorm
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -11,8 +12,9 @@ const (
 	DataVersionFieldName = "DataVersion"
 )
 
-type EntityHandlerFunc func(entity any) error      // we should instantiate entity before calling this handler
-type EntityHandlerFuncByRef func(ref string) error // we can call this handler without instantiating entity, just by reference for better performance
+type EntityHandlerFuncNoContext func(entity any) error                  // we should instantiate entity before calling this handler
+type EntityHandlerFunc func(ctx context.Context, entity any) error      // we should instantiate entity before calling this handler
+type EntityHandlerFuncByRef func(ctx context.Context, ref string) error // we can call this handler without instantiating entity, just by reference for better performance
 
 type EntityDef struct {
 	Factory              *Factory
@@ -27,7 +29,7 @@ type EntityDef struct {
 	DataVersionField     *FieldDef                // field for data versioning
 	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom struct
 
-	fillNewHandlers           []EntityHandlerFunc
+	fillNewHandlers           []EntityHandlerFuncNoContext
 	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
 	beforeSaveHandlers        []EntityHandlerFunc
 	afterSaveHandlerByRefs    []EntityHandlerFuncByRef

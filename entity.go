@@ -1,6 +1,7 @@
 package elorm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -11,7 +12,8 @@ import (
 type IEntity interface {
 	RefString() string
 	IsNew() bool
-	Save() error
+	IsDeleted() bool
+	Save(ctx context.Context) error
 	LoadFrom(src IEntity, predefinedFields bool) error
 	GetValues() map[string]IFieldValue
 	Def() *EntityDef
@@ -32,6 +34,7 @@ type Entity struct {
 func (T *Entity) Def() *EntityDef {
 	return T.entityDef
 }
+
 func (T *Entity) GetValues() map[string]IFieldValue {
 	return T.Values
 }
@@ -69,7 +72,7 @@ func (T *Entity) DataVersion() string {
 //
 // Returns an error if any step fails, including handler execution, SQL operations,
 // or transaction management.
-func (T *Entity) Save() error {
+func (T *Entity) Save(ctx context.Context) error {
 	var err error
 
 	dvCheck := T.entityDef.DataVersionCheckMode
@@ -79,12 +82,12 @@ func (T *Entity) Save() error {
 
 	// before save handlers
 	for _, hndl := range T.entityDef.beforeSaveHandlerByRefs {
-		if err := hndl(T.RefString()); err != nil {
+		if err := hndl(ctx, T.RefString()); err != nil {
 			return fmt.Errorf("Entity.Save: beforeSaveHandlerByRef failed for ref %s: %w", T.ref.AsString(), err)
 		}
 	}
 	for _, hndl := range T.entityDef.beforeSaveHandlers {
-		if err := hndl(T.entityDef.Wrap(T)); err != nil {
+		if err := hndl(ctx, T.entityDef.Wrap(T)); err != nil {
 			return fmt.Errorf("Entity.Save: beforeSaveHandler failed for ref %s: %w", T.ref.AsString(), err)
 		}
 	}
@@ -204,12 +207,12 @@ func (T *Entity) Save() error {
 
 	// after save handlers
 	for _, handler := range T.entityDef.afterSaveHandlerByRefs {
-		if err := handler(T.RefString()); err != nil {
+		if err := handler(ctx, T.RefString()); err != nil {
 			return fmt.Errorf("Entity.Save: afterSaveHandlerByRef failed for ref %s: %w", T.ref.AsString(), err)
 		}
 	}
 	for _, handler := range T.entityDef.afterSaveHandlers {
-		if err := handler(T.entityDef.Wrap(T)); err != nil {
+		if err := handler(ctx, T.entityDef.Wrap(T)); err != nil {
 			return fmt.Errorf("Entity.Save: afterSaveHandler failed for ref %s: %w", T.RefString(), err)
 		}
 	}

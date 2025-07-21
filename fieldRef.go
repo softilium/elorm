@@ -2,6 +2,7 @@ package elorm
 
 import (
 	"fmt"
+	"reflect"
 )
 
 const refSplitter = "$$"
@@ -14,6 +15,18 @@ type FieldValueRef struct {
 	old     string
 }
 
+func isNilInterfaceValue(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	v := reflect.ValueOf(i)
+	if v.IsValid() && (v.Kind() == reflect.Ptr || v.Kind() == reflect.Slice ||
+		v.Kind() == reflect.Map || v.Kind() == reflect.Func || v.Kind() == reflect.Interface) {
+		return v.IsNil()
+	}
+	return false
+}
+
 func (T *FieldValueRef) SetFactory(newValue *Factory) {
 	T.factory = newValue
 }
@@ -24,7 +37,9 @@ func (T *FieldValueRef) Set(newValue any) error {
 	case string:
 		stringValue = v
 	case IEntity:
-		stringValue = v.RefString()
+		if !isNilInterfaceValue(v) {
+			stringValue = v.RefString()
+		}
 	default:
 		if newValue != nil {
 			return fmt.Errorf("FieldValueRef.Set: type assertion failed: expected string or entityRef pointer for field, got %T", newValue)

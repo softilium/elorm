@@ -1,6 +1,7 @@
 package elorm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"slices"
@@ -57,6 +58,7 @@ func addHandler[ht any](
 					setter(def, make([]ht, 0))
 				}
 				setter(def, append(getter(def), handler))
+				found = true
 			}
 		}
 		if !found {
@@ -68,10 +70,10 @@ func addHandler[ht any](
 	return nil
 }
 
-func (f *Factory) AddFillNewHandler(dest any, handler EntityHandlerFunc) error {
+func (f *Factory) AddFillNewHandler(dest any, handler EntityHandlerFuncNoContext) error {
 	return addHandler(f, dest, handler, "AddFillNewHandler",
-		func(def *EntityDef) []EntityHandlerFunc { return def.fillNewHandlers },
-		func(def *EntityDef, newValue []EntityHandlerFunc) { def.fillNewHandlers = newValue })
+		func(def *EntityDef) []EntityHandlerFuncNoContext { return def.fillNewHandlers },
+		func(def *EntityDef, newValue []EntityHandlerFuncNoContext) { def.fillNewHandlers = newValue })
 }
 
 func (f *Factory) AddBeforeSaveHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
@@ -538,7 +540,7 @@ func (T *Factory) FetchRowMap(rows *sql.Rows) (map[string]any, error) {
 	return hm, nil
 }
 
-func (T *Factory) DeleteEntity(ref string) error {
+func (T *Factory) DeleteEntity(ctx context.Context, ref string) error {
 
 	if ref == "" {
 		return fmt.Errorf("Factory.DeleteEntity: ref is empty")
@@ -557,7 +559,7 @@ func (T *Factory) DeleteEntity(ref string) error {
 
 	// before delete handlers
 	for _, handler := range def.beforeDeleteHandlerByRefs {
-		err := handler(ref)
+		err := handler(ctx, ref)
 		if err != nil {
 			_ = T.RollbackTran(tx)
 			return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandlerByRef failed: %w", err)
@@ -570,7 +572,7 @@ func (T *Factory) DeleteEntity(ref string) error {
 			return fmt.Errorf("Factory.DeleteEntity: failed to load entity for deletion (for running BeforeDeleteHandler): %w", err)
 		}
 		for _, handler := range def.beforeDeleteHandlers {
-			err = handler(loaded)
+			err = handler(ctx, loaded)
 			if err != nil {
 				_ = T.RollbackTran(tx)
 				return fmt.Errorf("Factory.DeleteEntity: BeforeDeleteHandler failed: %w", err)
