@@ -29,6 +29,8 @@ type EntityDef struct {
 	DataVersionField     *FieldDef                // field for data versioning
 	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom struct
 
+	AutoExpandFieldsForJSON map[*FieldDef]bool // if specified, these fields will be automatically expanded when serializing to JSON
+
 	fillNewHandlers           []EntityHandlerFuncNoContext
 	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
 	beforeSaveHandlers        []EntityHandlerFunc

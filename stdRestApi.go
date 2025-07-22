@@ -37,6 +37,8 @@ type RestApiConfig[T IEntity] struct {
 
 	BeforeMiddleware func(http.ResponseWriter, *http.Request) bool
 	Context          func(r *http.Request) context.Context
+	AdditionalFilter func(r *http.Request) []*Filter   //for list
+	DefaultSorts     func(r *http.Request) []*SortItem //for list
 }
 
 const DefaultPageSize = 20
@@ -262,7 +264,12 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 	foundsSorts := make([]*SortItem, 0)
 
 	sorts := make([]*SortItem, 0)
-	sorts = append(sorts, &SortItem{Field: config.Def.RefField, Asc: true})
+
+	if config.DefaultSorts != nil {
+		sorts = config.DefaultSorts(r)
+	} else {
+		sorts = append(sorts, &SortItem{Field: config.Def.RefField, Asc: true})
+	}
 
 	if sortBy := r.URL.Query().Get(config.ParamSortBy); sortBy != "" {
 		sortParts := strings.Split(sortBy, ",")
@@ -285,6 +292,28 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 		}
 		if len(foundsSorts) > 0 {
 			sorts = foundsSorts
+		}
+	}
+
+	if config.AdditionalFilter != nil {
+		aFilters := config.AdditionalFilter(r)
+		for _, f := range aFilters {
+			if f != nil {
+
+				found := false
+				for _, existFilter := range filters {
+					if existFilter.LeftOp == f.LeftOp {
+						existFilter.Op = f.Op
+						existFilter.RightOp = f.RightOp
+						existFilter.Childs = f.Childs
+						found = true
+						break
+					}
+				}
+				if !found {
+					filters = append(filters, f)
+				}
+			}
 		}
 	}
 

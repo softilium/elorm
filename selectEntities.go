@@ -281,7 +281,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 
 	fp := make([]any, len(T.FieldDefs))
 	for rows.Next() {
-		res, err := T.Factory.CreateEntity(T) //TODO call createEntity with no fillNewHandler
+		res, err := T.Factory.CreateEntity(T)
 		if err != nil {
 			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to create entity: %w", err)
 		}

@@ -124,10 +124,8 @@ func (f *Factory) BeginTran() (*sql.Tx, error) {
 			return nil, fmt.Errorf("Factory.BeginTran: failed to begin transaction: %w", err)
 		}
 		f.activeTx = newTx
-		f.nestedTxLevel = 1
-	} else {
-		f.nestedTxLevel++
 	}
+	f.nestedTxLevel++
 
 	return f.activeTx, nil
 }
@@ -182,6 +180,7 @@ func (f *Factory) RollbackTran(tx *sql.Tx) error {
 		}
 		err := f.activeTx.Rollback()
 		f.activeTx = nil
+		f.nestedTxLevel = 0
 		return err
 	}
 }
@@ -312,7 +311,7 @@ func (T *Factory) IsRef(s string) (bool, *EntityDef) {
 	return false, nil
 }
 
-func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
+func (T *Factory) createEntityImpl(def *EntityDef, fillNew bool) (*Entity, error) {
 	if def == nil {
 		return nil, fmt.Errorf("Factory.CreateEntity: def is nil")
 	}
@@ -341,14 +340,20 @@ func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 
 	T.loadedEntities.Add(r.RefString(), r)
 
-	for _, handler := range def.fillNewHandlers {
-		err := handler(r.entityDef.Wrap(r))
-		if err != nil {
-			return nil, fmt.Errorf("Factory.CreateEntity: fillNewHandler failed: %w", err)
+	if fillNew {
+		for _, handler := range def.fillNewHandlers {
+			err := handler(r.entityDef.Wrap(r))
+			if err != nil {
+				return nil, fmt.Errorf("Factory.CreateEntity: fillNewHandler failed: %w", err)
+			}
 		}
 	}
 
 	return r, nil
+}
+
+func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
+	return T.createEntityImpl(def, true)
 }
 
 func (T *Factory) CreateEntityWrapped(def *EntityDef) (any, error) {

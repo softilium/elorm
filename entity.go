@@ -225,9 +225,14 @@ func (T *Entity) Save(ctx context.Context) error {
 	return nil
 }
 
-func (T *Entity) MarshalJSON() ([]byte, error) {
+func (T *Entity) valuesToMap(defs map[*FieldDef]bool) (map[string]any, error) {
 	vm := make(map[string]any, len(T.Values))
 	for _, v := range T.Values {
+		if len(defs) > 0 {
+			if _, ok := defs[v.Def()]; !ok {
+				continue
+			}
+		}
 
 		switch vt := v.(type) {
 		case *FieldValueString:
@@ -237,7 +242,24 @@ func (T *Entity) MarshalJSON() ([]byte, error) {
 		case *FieldValueBool:
 			vm[v.Def().Name] = vt.v
 		case *FieldValueRef:
-			vm[v.Def().Name] = vt.v
+			ok, def := T.Factory.IsRef(vt.v)
+			if !ok {
+				vm[v.Def().Name] = vt.v
+			} else {
+				if len(def.AutoExpandFieldsForJSON) > 0 && vt.def.Name != RefFieldName {
+					entity, err := T.Factory.LoadEntity(vt.v)
+					if err != nil {
+						return nil, fmt.Errorf("Entity.MarshalJSON: failed to load entity for ref %s: %w", vt.v, err)
+					}
+					vm2, err := entity.valuesToMap(def.AutoExpandFieldsForJSON)
+					if err != nil {
+						return nil, fmt.Errorf("Entity.MarshalJSON: failed to convert entity to map for ref %s: %w", vt.v, err)
+					}
+					vm[v.Def().Name] = vm2
+				} else {
+					vm[v.Def().Name] = vt.v
+				}
+			}
 		case *FieldValueDateTime:
 			vm[v.Def().Name] = vt.v.Format(time.RFC3339)
 		case *FieldValueNumeric:
@@ -245,7 +267,14 @@ func (T *Entity) MarshalJSON() ([]byte, error) {
 		default:
 			return nil, fmt.Errorf("Entity.MarshalJSON: unsupported field type %d for field %s", v.Def().Type, v.Def().Name)
 		}
+	}
+	return vm, nil
+}
 
+func (T *Entity) MarshalJSON() ([]byte, error) {
+	vm, err := T.valuesToMap(nil)
+	if err != nil {
+		return nil, fmt.Errorf("Entity.MarshalJSON: failed to convert values to map: %w", err)
 	}
 	return json.Marshal(vm)
 }
