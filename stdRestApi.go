@@ -135,6 +135,10 @@ func HandleRestApi[T IEntity](config RestApiConfig[T]) func(w http.ResponseWrite
 func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
 	const methodPrefix = "RestApiConfig.responsePut: "
 	ref := r.URL.Query().Get(config.ParamRef)
+	if ref == "" {
+		SendHttpError(w, fmt.Sprintf("%smissing ref parameter", methodPrefix), http.StatusBadRequest)
+		return
+	}
 
 	dbRecord, err := config.LoadEntityFunc(ref)
 	if err != nil {
@@ -219,6 +223,10 @@ func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r
 func responseGet[T IEntity](config RestApiConfig[T], r *http.Request, w http.ResponseWriter) {
 	const methodPrefix = "RestApiConfig.responseGet: "
 	ref := r.URL.Query().Get(config.ParamRef)
+	if ref == "" {
+		SendHttpError(w, fmt.Sprintf("%smissing ref parameter", methodPrefix), http.StatusBadRequest)
+		return
+	}
 
 	record, err := config.LoadEntityFunc(ref)
 	if err != nil {

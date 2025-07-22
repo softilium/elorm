@@ -38,7 +38,7 @@ func (T *EntityDef) compileIndexTargets() ([]*indexItem, error) {
 			return nil, fmt.Errorf("EntityDef.compileIndexTargets: failed to get SQL table name: %w", err)
 		}
 		newTarget.fields = buf
-		newTarget.name = tableName + "_idx_by_" + strings.Join(newTarget.fields, "_")
+		newTarget.name = fmt.Sprintf("%s_idx_by_%s", tableName, strings.Join(newTarget.fields, "_"))
 		if newTarget.unique {
 			newTarget.name += "__uniq"
 		}
