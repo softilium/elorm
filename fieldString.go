@@ -2,6 +2,7 @@ package elorm
 
 import (
 	"fmt"
+	"strings"
 )
 
 type FieldValueString struct {
@@ -23,6 +24,7 @@ func (T *FieldValueString) SqlStringValue(v ...any) (string, error) {
 	if T.def == nil || T.def.EntityDef == nil || T.def.EntityDef.Factory == nil {
 		return "", fmt.Errorf("FieldValueString.SqlStringValue: missing definition or factory for field %s", T.def.Name)
 	}
+	v2 = strings.ReplaceAll(v2, "'", "''") // Escape single quotes for SQL
 	return fmt.Sprintf("'%s'", v2), nil
 }
 

@@ -145,6 +145,10 @@ func (T *Entity) Save(ctx context.Context) error {
 		}
 
 	} else {
+
+		oldDV := T.DataVersion()
+		T.dataVersion.Set(NewRef())
+
 		refsv, err := T.ref.SqlStringValue()
 		if err != nil {
 			_ = T.Factory.RollbackTran(tx)
@@ -163,8 +167,6 @@ func (T *Entity) Save(ctx context.Context) error {
 		}
 
 		if dvCheck == DataVersionCheckAlways {
-			oldDV := T.DataVersion()
-			T.dataVersion.Set(NewRef())
 
 			sql := fmt.Sprintf(`update %s set %s where ref=%s and dataversion='%s'`,
 				tableName, strings.Join(setlist, ", "), refsv, oldDV)
