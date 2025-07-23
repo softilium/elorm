@@ -37,8 +37,8 @@ type RestApiConfig[T IEntity] struct {
 
 	BeforeMiddleware func(http.ResponseWriter, *http.Request) bool
 	Context          func(r *http.Request) context.Context
-	AdditionalFilter func(r *http.Request) []*Filter   //for list
-	DefaultSorts     func(r *http.Request) []*SortItem //for list
+	AdditionalFilter func(r *http.Request) ([]*Filter, error)   //for list
+	DefaultSorts     func(r *http.Request) ([]*SortItem, error) //for list
 }
 
 const DefaultPageSize = 20
@@ -274,7 +274,11 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 	sorts := make([]*SortItem, 0)
 
 	if config.DefaultSorts != nil {
-		sorts = config.DefaultSorts(r)
+		sorts, err = config.DefaultSorts(r)
+		if err != nil {
+			SendHttpError(w, fmt.Sprintf("%sfailed to get default sorts: %v", methodPrefix, err), http.StatusInternalServerError)
+			return
+		}
 	} else {
 		sorts = append(sorts, &SortItem{Field: config.Def.RefField, Asc: true})
 	}
@@ -304,7 +308,11 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 	}
 
 	if config.AdditionalFilter != nil {
-		aFilters := config.AdditionalFilter(r)
+		aFilters, err := config.AdditionalFilter(r)
+		if err != nil {
+			SendHttpError(w, fmt.Sprintf("%sfailed to get additional filters: %v", methodPrefix, err), http.StatusInternalServerError)
+			return
+		}
 		for _, f := range aFilters {
 			if f != nil {
 

@@ -106,9 +106,6 @@ func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
 	if T.factory == nil {
 		return "", fmt.Errorf("FieldValueRef.SqlStringValue: missing factory")
 	}
-	if v2 == "" {
-		return "NULL", nil
-	}
 	return fmt.Sprintf("'%s'", v2), nil
 }
 
@@ -132,6 +129,13 @@ func (T *FieldValueRef) Scan(v any) error {
 		asStr = string(v)
 	default:
 		return fmt.Errorf("FieldValueRef.Scan: type assertion failed: expected string or []uint8 for field %s, got %T", T.def.Name, v)
+	}
+
+	if asStr == "" {
+		T.v = ""
+		T.isDirty = false
+		T.old = T.v
+		return nil
 	}
 
 	if T.def != nil {
