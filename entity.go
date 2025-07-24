@@ -324,9 +324,19 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 					return fmt.Errorf("Entity.LoadFromJSON: unexpected type for boolean field %s: %T", v.Def().Name, val)
 				}
 			case FieldDefTypeRef:
-				stringVal, ok := val.(string)
-				if !ok {
-					return fmt.Errorf("Entity.LoadFromJSON: expected string for reference field %s, got %T", v.Def().Name, val)
+				stringVal := ""
+				switch vt := val.(type) {
+				case string:
+					stringVal = vt
+				case map[string]any:
+					if ref, ok := vt[RefFieldName]; ok {
+						stringVal, ok = ref.(string)
+						if !ok {
+							return fmt.Errorf("Entity.LoadFromJSON: expected string for reference field %s, got %T", v.Def().Name, ref)
+						}
+					} else {
+						return fmt.Errorf("Entity.LoadFromJSON: missing reference field %s in map", RefFieldName)
+					}
 				}
 				err = v.(*FieldValueRef).Set(stringVal)
 				if err != nil {

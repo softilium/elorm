@@ -24,11 +24,12 @@ type RestApiConfig[T IEntity] struct {
 	AutoFilters        bool
 	DefaultPageSize    int
 
-	EnableGetOne  bool
-	EnableGetList bool
-	EnablePost    bool
-	EnablePut     bool
-	EnableDelete  bool
+	EnableGetOne     bool
+	EnableGetList    bool
+	EnablePost       bool
+	EnablePut        bool
+	EnableDelete     bool
+	EnableSoftDelete bool
 
 	ParamRef      string
 	ParamPageNo   string
@@ -57,11 +58,12 @@ func CreateStdRestApiConfig[T IEntity](
 		AutoFilters:        true,
 		DefaultPageSize:    DefaultPageSize,
 
-		EnableGetOne:  true,
-		EnableGetList: true,
-		EnablePost:    true,
-		EnablePut:     true,
-		EnableDelete:  true,
+		EnableGetOne:     true,
+		EnableGetList:    true,
+		EnablePost:       true,
+		EnablePut:        true,
+		EnableDelete:     true,
+		EnableSoftDelete: true,
 
 		ParamRef:      "ref",
 		ParamPageNo:   "pageno",
@@ -178,6 +180,8 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *http.Request) {
 	const methodPrefix = "RestApiConfig.responsePost: "
 	newRecord, err := config.CreateEntityFunc()
+	refFld := (*newRecord).GetValues()[RefFieldName].(*FieldValueRef)
+	oldRef := refFld.v
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("%sfailed to create entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -193,9 +197,20 @@ func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *
 	if config.Context != nil {
 		ctx = config.Context(r)
 	}
+
+	// override generated Ref after load from request body
+	if refFld.v == "" {
+		refFld.v = oldRef
+	}
 	err = (*newRecord).Save(ctx)
 	if err != nil {
 		SendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(newRecord)
+	if err != nil {
+		SendHttpError(w, fmt.Sprintf("%sfailed to encode entity to JSON: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -209,11 +224,29 @@ func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r
 		if config.Context != nil {
 			ctx = config.Context(r)
 		}
-		err := config.Def.Factory.DeleteEntity(ctx, ref)
-		if err != nil {
-			SendHttpError(w, fmt.Sprintf("%sfailed to delete entity: %v", methodPrefix, err), http.StatusNotFound)
-			return
+
+		if config.EnableSoftDelete {
+			ent, err := config.Def.Factory.LoadEntity(ref)
+			if err != nil {
+				SendHttpError(w, fmt.Sprintf("%sfailed to load entity: %v", methodPrefix, err), http.StatusNotFound)
+				return
+			}
+			if !ent.IsDeleted() {
+				ent.SetIsDeleted(true)
+				err = ent.Save(ctx)
+				if err != nil {
+					SendHttpError(w, fmt.Sprintf("%sfailed to soft delete entity: %v", methodPrefix, err), http.StatusInternalServerError)
+					return
+				}
+			}
+		} else {
+			err := config.Def.Factory.DeleteEntity(ctx, ref)
+			if err != nil {
+				SendHttpError(w, fmt.Sprintf("%sfailed to delete entity: %v", methodPrefix, err), http.StatusNotFound)
+				return
+			}
 		}
+
 		w.WriteHeader(http.StatusOK)
 	} else {
 		SendHttpError(w, fmt.Sprintf("%smissing ref parameter", methodPrefix), http.StatusNotFound)
