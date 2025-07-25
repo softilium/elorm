@@ -49,7 +49,10 @@ func (T *FieldValueInt) AsString() string {
 
 func (T *FieldValueInt) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("fieldValueInt.Scan: nil value for field %s", T.def.Name)
+		T.v = 0
+		T.isDirty = false
+		T.old = T.v
+		return nil
 	}
 	asInt, ok := v.(int64)
 	if !ok {

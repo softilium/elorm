@@ -251,7 +251,7 @@ func (T *Entity) valuesToMap(defs map[*FieldDef]bool) (map[string]any, error) {
 				if len(def.AutoExpandFieldsForJSON) > 0 && vt.def.Name != RefFieldName {
 					entity, err := T.Factory.LoadEntity(vt.v)
 					if err != nil {
-						return nil, fmt.Errorf("Entity.MarshalJSON: failed to load entity for ref %s: %w", vt.v, err)
+						return nil, fmt.Errorf("Entity.MarshalJSON: failed to load entity for (entity type=%s, ref=%s): %w", vt.def.Name, vt.v, err)
 					}
 					vm2, err := entity.valuesToMap(def.AutoExpandFieldsForJSON)
 					if err != nil {

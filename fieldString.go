@@ -51,7 +51,10 @@ func (T *FieldValueString) AsString() string {
 
 func (T *FieldValueString) Scan(v any) error {
 	if v == nil {
-		return fmt.Errorf("FieldValueString.Scan: nil value for field %s", T.def.Name)
+		T.v = ""
+		T.isDirty = false
+		T.old = T.v
+		return nil
 	}
 	switch vtyped := v.(type) {
 	case string:
