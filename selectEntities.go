@@ -6,15 +6,19 @@ import (
 )
 
 const (
-	FilterEQ       = 50
-	FilterLIKE     = 55
-	FilterNOEQ     = 60
-	FilterGT       = 70
-	FilterGE       = 80
-	FilterLT       = 90
-	FilterLE       = 100
-	FilterAndGroup = 200
-	FilterOrGroup  = 210
+	FilterEQ        = 50
+	FilterLIKE      = 55
+	FilterNOEQ      = 60
+	FilterGT        = 70
+	FilterGE        = 80
+	FilterLT        = 90
+	FilterLE        = 100
+	FilterIN        = 110
+	FilterNOTIN     = 120
+	FilterIsNULL    = 130
+	FilterIsNOTNULL = 140
+	FilterAndGroup  = 200
+	FilterOrGroup   = 210
 )
 
 type Filter struct {
@@ -101,6 +105,38 @@ func AddFilterLE(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+func AddFilterIN(leftField *FieldDef, rightValues ...any) *Filter {
+	if leftField == nil || len(rightValues) == 0 {
+		return nil
+	}
+	return &Filter{
+		Op:      FilterIN,
+		LeftOp:  leftField,
+		RightOp: rightValues,
+	}
+}
+func AddFilterNOTIN(leftField *FieldDef, rightValues ...any) *Filter {
+	if leftField == nil || len(rightValues) == 0 {
+		return nil
+	}
+	return &Filter{
+		Op:      FilterNOTIN,
+		LeftOp:  leftField,
+		RightOp: rightValues,
+	}
+}
+
+func AddFilterIsNULL(leftField *FieldDef) *Filter {
+	if leftField == nil {
+		return nil
+	}
+	return &Filter{
+		Op:      FilterIsNULL,
+		LeftOp:  leftField,
+		RightOp: nil,
+	}
+}
+
 func AddAndGroup(childs ...*Filter) *Filter {
 	return &Filter{
 		Op:      FilterAndGroup,
@@ -120,12 +156,14 @@ func AddOrGroup(childs ...*Filter) *Filter {
 }
 
 var renderOpsMap = map[int]string{
-	FilterEQ:   "=",
-	FilterNOEQ: "<>",
-	FilterGT:   ">",
-	FilterGE:   ">=",
-	FilterLT:   "<",
-	FilterLE:   "<=",
+	FilterEQ:    "=",
+	FilterNOEQ:  "<>",
+	FilterGT:    ">",
+	FilterGE:    ">=",
+	FilterLT:    "<",
+	FilterLE:    "<=",
+	FilterIN:    "IN",
+	FilterNOTIN: "NOT IN",
 }
 
 var renderGroupOpsMap = map[int]string{
@@ -158,6 +196,42 @@ func (T *Filter) renderWhereClause() (string, error) {
 				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
 			}
 			return fmt.Sprintf("%s LIKE '%%%v%%'", colname, T.RightOp), nil
+		}
+	case FilterIN, FilterNOTIN:
+		if T.LeftOp != nil && T.RightOp != nil {
+			fv, err := T.LeftOp.CreateFieldValue(nil)
+			if err != nil {
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to create field value: %w", err)
+			}
+			colname, err := T.LeftOp.SqlColumnName()
+			if err != nil {
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
+			}
+			var values []string
+			for _, v := range T.RightOp.([]any) {
+				rv, err := fv.SqlStringValue(v)
+				if err != nil {
+					return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL string value for IN/NOT IN: %w", err)
+				}
+				values = append(values, rv)
+			}
+			return fmt.Sprintf("%s %s (%s)", colname, renderOpsMap[T.Op], strings.Join(values, ", ")), nil
+		}
+	case FilterIsNULL:
+		if T.LeftOp != nil {
+			colname, err := T.LeftOp.SqlColumnName()
+			if err != nil {
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
+			}
+			return fmt.Sprintf("%s IS NULL", colname), nil
+		}
+	case FilterIsNOTNULL:
+		if T.LeftOp != nil {
+			colname, err := T.LeftOp.SqlColumnName()
+			if err != nil {
+				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
+			}
+			return fmt.Sprintf("NOT %s IS NULL", colname), nil
 		}
 	case FilterAndGroup, FilterOrGroup:
 		results := make([]string, len(T.Childs))

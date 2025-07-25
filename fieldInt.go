@@ -33,7 +33,11 @@ func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(int64)
 		if !ok {
-			return "", fmt.Errorf("FieldValueInt.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+			v3, ok := v[0].(int)
+			if !ok {
+				return "", fmt.Errorf("FieldValueInt.SqlStringValue: expected int64 value for field %s, got %T", T.def.Name, v)
+			}
+			v2 = int64(v3)
 		}
 	}
 
