@@ -16,12 +16,13 @@ const (
 )
 
 type FieldDef struct {
-	EntityDef *EntityDef
-	Name      string
-	Type      int
-	Len       int //for string
-	Precision int //for numeric
-	Scale     int //for numeric
+	EntityDef          *EntityDef
+	Name               string
+	Type               int
+	Len                int    //for string
+	Precision          int    //for numeric
+	Scale              int    //for numeric
+	DateTimeJSONFormat string //for date time, e.g. "2006-01-02T15:04:05Z07:00"
 }
 
 func (T *FieldDef) CreateFieldValue(entity *Entity) (IFieldValue, error) {

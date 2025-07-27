@@ -47,11 +47,11 @@ func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 		return "NULL", nil
 	}
 
-	return fmt.Sprintf("'%s'", v2.Format(time.DateTime)), nil
+	return fmt.Sprintf("'%s'", v2.Format(T.def.DateTimeJSONFormat)), nil
 }
 
 func (T *FieldValueDateTime) AsString() string {
-	return T.v.Format(time.RFC3339)
+	return T.v.Format(T.def.DateTimeJSONFormat)
 }
 
 func (T *FieldValueDateTime) Scan(v any) error {
@@ -68,7 +68,7 @@ func (T *FieldValueDateTime) Scan(v any) error {
 		if vt2 == "infinity" || vt2 == "-infinity" { //sqlite
 			T.v = time.Time{}
 		} else {
-			parsedTime, err := time.Parse(time.DateTime, vt2)
+			parsedTime, err := time.Parse(T.def.DateTimeJSONFormat, vt2)
 			if err != nil {
 				return fmt.Errorf("fieldValueDateTime.Scan: failed to parse time from []uint8 for field %s: %v", T.def.Name, err)
 			}

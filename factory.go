@@ -114,10 +114,6 @@ func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) er
 
 func (f *Factory) BeginTran() (*sql.Tx, error) {
 
-	if f.dbDialect != DbDialectSQLite {
-		return f.db.Begin()
-	}
-
 	if f.nestedTxLevel == 0 {
 		newTx, err := f.db.Begin()
 		if err != nil {
@@ -131,24 +127,20 @@ func (f *Factory) BeginTran() (*sql.Tx, error) {
 }
 
 func (f *Factory) CommitTran(tx *sql.Tx) error {
-	if f.dbDialect != DbDialectSQLite {
-		return tx.Commit()
-	} else {
 
-		if f.nestedTxLevel == 0 {
-			return fmt.Errorf("Factory.CommitTran: no active transaction to commit")
-		}
-		f.nestedTxLevel--
-		if f.nestedTxLevel == 0 {
-			err := f.activeTx.Commit()
-			if err != nil {
-				_ = f.RollbackTran(tx)
-			}
-			f.activeTx = nil
-			return err
-		}
-		return nil
+	if f.nestedTxLevel == 0 {
+		return fmt.Errorf("Factory.CommitTran: no active transaction to commit")
 	}
+	f.nestedTxLevel--
+	if f.nestedTxLevel == 0 {
+		err := f.activeTx.Commit()
+		if err != nil {
+			_ = f.RollbackTran(tx)
+		}
+		f.activeTx = nil
+		return err
+	}
+	return nil
 }
 
 func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
@@ -172,17 +164,13 @@ func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
 }
 
 func (f *Factory) RollbackTran(tx *sql.Tx) error {
-	if f.dbDialect != DbDialectSQLite {
-		return tx.Rollback()
-	} else {
-		if f.nestedTxLevel == 0 {
-			return fmt.Errorf("Factory.RollbackTran: no active transaction to rollback")
-		}
-		err := f.activeTx.Rollback()
-		f.activeTx = nil
-		f.nestedTxLevel = 0
-		return err
+	if f.nestedTxLevel == 0 {
+		return fmt.Errorf("Factory.RollbackTran: no active transaction to rollback")
 	}
+	err := f.activeTx.Rollback()
+	f.activeTx = nil
+	f.nestedTxLevel = 0
+	return err
 }
 
 func CreateFactory(dbDialect string, connectionString string) (*Factory, error) {
@@ -338,8 +326,6 @@ func (T *Factory) createEntityImpl(def *EntityDef, fillNew bool) (*Entity, error
 
 	r.dataVersion = r.Values[DataVersionFieldName].(*FieldValueString)
 
-	T.loadedEntities.Add(r.RefString(), r)
-
 	if fillNew {
 		for _, handler := range def.fillNewHandlers {
 			err := handler(r.entityDef.Wrap(r))
@@ -386,15 +372,11 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 		return nil, fmt.Errorf("Factory.LoadEntity: failed to get SQL table name for entity %s: %w", def.ObjectName, err)
 	}
 
-	dvcm := def.DataVersionCheckMode
-	if dvcm == DataVersionCheckDefault {
-		dvcm = T.dataVersionCheckMode
-	}
+	dvcm := def.ActualDataVersionCheckMode()
 
 	fromCache, ok := T.loadedEntities.Get(Ref)
 	if ok {
-		if !T.AggressiveReadingCache && dvcm != DataVersionCheckNever {
-
+		if dvcm != DataVersionCheckNever {
 			row := T.db.QueryRow(fmt.Sprintf("select 1 from %s where Ref=%s and DataVersion=%s", tableName, Ref, fromCache.DataVersion()))
 			var scanBuffer *int
 			if row.Scan(scanBuffer) == sql.ErrNoRows {

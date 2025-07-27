@@ -263,7 +263,7 @@ func (T *Entity) valuesToMap(defs map[*FieldDef]bool) (map[string]any, error) {
 				}
 			}
 		case *FieldValueDateTime:
-			vm[v.Def().Name] = vt.v.Format(time.DateTime)
+			vm[v.Def().Name] = vt.v.Format(v.Def().DateTimeJSONFormat)
 		case *FieldValueNumeric:
 			vm[v.Def().Name] = vt.v
 		default:
@@ -344,7 +344,7 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 				}
 			case FieldDefTypeDateTime:
 				strVal := strings.TrimSpace(val.(string))
-				tv, err := time.Parse(time.DateTime, strVal)
+				tv, err := time.Parse(v.Def().DateTimeJSONFormat, strVal)
 				if err != nil {
 					return fmt.Errorf("Entity.LoadFromJSON: failed to parse date time: %w", err)
 				}

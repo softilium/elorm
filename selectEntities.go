@@ -355,6 +355,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 
 	fp := make([]any, len(T.FieldDefs))
 	for rows.Next() {
+
 		res, err := T.Factory.CreateEntity(T)
 		if err != nil {
 			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to create entity: %w", err)
@@ -362,11 +363,22 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		for i, v := range T.FieldDefs {
 			fp[i] = res.Values[v.Name].(any)
 		}
+
 		err = rows.Scan(fp...)
 		if err != nil {
 			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to scan row: %w", err)
 		}
 		res.isNew = false
+
+		cached, ok := T.Factory.loadedEntities.Get(res.RefString())
+		if ok {
+			if cached.dataVersion.v == res.dataVersion.v {
+				res = cached
+			} else {
+				T.Factory.loadedEntities.Remove(res.RefString())
+			}
+		}
+
 		T.Factory.loadedEntities.Add(res.RefString(), res)
 		result = append(result, res)
 	}

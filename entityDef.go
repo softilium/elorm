@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const (
@@ -73,9 +74,10 @@ func (T *EntityDef) AddDateTimeFieldDef(name string) (*FieldDef, error) {
 		return nil, err
 	}
 	nr := &FieldDef{
-		EntityDef: T,
-		Name:      name,
-		Type:      FieldDefTypeDateTime,
+		EntityDef:          T,
+		Name:               name,
+		Type:               FieldDefTypeDateTime,
+		DateTimeJSONFormat: time.DateTime, // default format, can be changed later
 	}
 
 	T.FieldDefs = append(T.FieldDefs, nr)
@@ -403,4 +405,15 @@ func (T *EntityDef) ensureDBStructureSQLite() error {
 		return fmt.Errorf("EntityDef.ensureDBStructureSQLite: failed to commit transaction: %w", err)
 	}
 	return nil
+}
+
+func (T *EntityDef) ActualDataVersionCheckMode() int {
+	if T.Factory.AggressiveReadingCache {
+		return DataVersionCheckNever
+	}
+	dvcm := T.DataVersionCheckMode
+	if dvcm == DataVersionCheckDefault {
+		dvcm = T.Factory.dataVersionCheckMode
+	}
+	return dvcm
 }
