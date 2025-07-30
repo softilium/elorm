@@ -35,7 +35,6 @@ type EntityDef struct {
 	fillNewHandlers           []EntityHandlerFuncNoContext
 	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
 	beforeSaveHandlers        []EntityHandlerFunc
-	afterSaveHandlerByRefs    []EntityHandlerFuncByRef
 	afterSaveHandlers         []EntityHandlerFunc
 	beforeDeleteHandlerByRefs []EntityHandlerFuncByRef
 	beforeDeleteHandlers      []EntityHandlerFunc

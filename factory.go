@@ -88,12 +88,6 @@ func (f *Factory) AddBeforeSaveHandler(dest any, handler EntityHandlerFunc) erro
 		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeSaveHandlers = newValue })
 }
 
-func (f *Factory) AddAfterSaveHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
-	return addHandler(f, dest, handler, "AddAfterSaveHandlerByRef",
-		func(def *EntityDef) []EntityHandlerFuncByRef { return def.afterSaveHandlerByRefs },
-		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.afterSaveHandlerByRefs = newValue })
-}
-
 func (f *Factory) AddAfterSaveHandler(dest any, handler EntityHandlerFunc) error {
 	return addHandler(f, dest, handler, "AddAfterSaveHandler",
 		func(def *EntityDef) []EntityHandlerFunc { return def.afterSaveHandlers },

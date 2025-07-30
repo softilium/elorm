@@ -202,17 +202,11 @@ func (T *Entity) Save(ctx context.Context) error {
 
 	err = T.Factory.CommitTran(tx)
 
-	T.isNew = false
 	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to commit transaction: %w", err)
 	}
 
 	// after save handlers
-	for _, handler := range T.entityDef.afterSaveHandlerByRefs {
-		if err := handler(ctx, T.RefString()); err != nil {
-			return fmt.Errorf("Entity.Save: afterSaveHandlerByRef failed for ref %s: %w", T.ref.AsString(), err)
-		}
-	}
 	for _, handler := range T.entityDef.afterSaveHandlers {
 		if err := handler(ctx, T.entityDef.Wrap(T)); err != nil {
 			return fmt.Errorf("Entity.Save: afterSaveHandler failed for ref %s: %w", T.RefString(), err)
