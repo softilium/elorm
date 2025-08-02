@@ -325,7 +325,9 @@ func (T *EntityDef) ensureDBStructureMySQL() error {
 			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructureMySQL: failed to get column information for field %s: %w", v.Name, err)
 		}
-		defer rows.Close()
+		defer func() {
+			_ = rows.Close()
+		}()
 		if !rows.Next() {
 			_, err = tran.Exec(fmt.Sprintf("alter table %s add column %s %s", tn, coln, colType))
 			if err != nil {
@@ -377,7 +379,9 @@ func (T *EntityDef) ensureDBStructureSQLite() error {
 			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructureSQLite: failed to get column information for field %s: %w", v.Name, err)
 		}
-		defer rows.Close()
+		defer func() {
+			_ = rows.Close()
+		}()
 		colExists := false
 		for rows.Next() {
 			var cid int

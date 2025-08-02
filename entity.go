@@ -62,7 +62,6 @@ func (T *Entity) DataVersion() string {
 // Save persists the Entity to the database. It handles both insert and update operations
 // depending on whether the entity is new or existing. The method performs the following steps:
 //   - Executes the BeforeSaveHandler if defined.
-//   - Determines the SQL table and column names for the entity.
 //   - Begins a database transaction.
 //   - If the entity is new, inserts a new record into the database.
 //   - If the entity exists, updates the corresponding record, optionally performing

@@ -351,7 +351,9 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 	if err != nil {
 		return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to execute query '%s': %w", query, err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	fp := make([]any, len(T.FieldDefs))
 	for rows.Next() {

@@ -414,7 +414,9 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Factory.LoadEntity: failed to query select statement: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
