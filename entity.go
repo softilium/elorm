@@ -77,7 +77,7 @@ func (T *Entity) Save(ctx context.Context) error {
 
 	dvCheck := T.entityDef.DataVersionCheckMode
 	if dvCheck == DataVersionCheckDefault {
-		dvCheck = T.Factory.DataVersionCheckMode
+		dvCheck = T.Factory.dataVersionCheckMode
 	}
 
 	// before save handlers

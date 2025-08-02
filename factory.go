@@ -25,15 +25,15 @@ const (
 )
 
 type Factory struct {
-	dbDialect              int
-	db                     *sql.DB
-	EntityDefs             []*EntityDef
-	loadedEntities         *expirable.LRU[string, *Entity]
-	DataVersionCheckMode   int
-	AggressiveReadingCache bool // It assumes each database has only one factory instance, so it can cache entities aggressively.
+	loadedEntities       *expirable.LRU[string, *Entity]
+	dataVersionCheckMode int // controlled by setDataVersionCheckMode, default is DataVersionCheckDefault
+	dbDialect            int
+	db                   *sql.DB
+	activeTx             *sql.Tx // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
+	nestedTxLevel        int     // Used to track nested transactions, so we can commit or rollback correctly.
 
-	activeTx      *sql.Tx // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
-	nestedTxLevel int     // Used to track nested transactions, so we can commit or rollback correctly.
+	AggressiveReadingCache bool // It assumes each database has only one factory instance, so it can cache entities aggressively.
+	EntityDefs             []*EntityDef
 }
 
 func addHandler[ht any](
@@ -192,7 +192,7 @@ func CreateFactory(dbDialect string, connectionString string) (*Factory, error) 
 		dbDialect:              dbd,
 		EntityDefs:             make([]*EntityDef, 0),
 		loadedEntities:         expirable.NewLRU[string, *Entity](0, nil, time.Minute*10),
-		DataVersionCheckMode:   DataVersionCheckAlways,
+		dataVersionCheckMode:   DataVersionCheckAlways,
 		AggressiveReadingCache: false,
 	}
 	var err error
@@ -217,7 +217,7 @@ func (T *Factory) SetDataVersionCheckMode(mode int) error {
 	if mode != DataVersionCheckNever && mode != DataVersionCheckAlways {
 		return fmt.Errorf("factory.SetDataVersionCheckMode: invalid mode %d, must be one of -1, 1", mode)
 	}
-	T.DataVersionCheckMode = mode
+	T.dataVersionCheckMode = mode
 	return nil
 }
 
