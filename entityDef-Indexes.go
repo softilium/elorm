@@ -171,7 +171,9 @@ order by
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.ensureDBIndexesPostgres: failed to query existing indexes: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	real := make([]*indexItem, 0)
 	for rows.Next() {
 		var iname, cname string
@@ -229,7 +231,9 @@ ORDER BY
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesMSSQL: failed to query existing indexes: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	real := make([]*indexItem, 0)
 	for rows.Next() {
@@ -269,7 +273,9 @@ func (T *EntityDef) loadDatabaseIndexesMySQL() ([]*indexItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesMySQL: failed to query existing indexes: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	rescols, _ := rows.Columns()
 	key_name_colidx := slices.Index(rescols, "Key_name")
@@ -328,7 +334,9 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesSQLite: failed to query existing indexes: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	fake := new(any)
 
@@ -352,7 +360,9 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 		if err != nil {
 			return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesSQLite: failed to query index info: %w", err)
 		}
-		defer indexRows.Close()
+		defer func() {
+			_ = indexRows.Close()
+		}()
 
 		fields := make([]string, 0)
 		for indexRows.Next() {

@@ -412,7 +412,7 @@ func (T *EntityDef) ActualDataVersionCheckMode() int {
 	}
 	dvcm := T.DataVersionCheckMode
 	if dvcm == DataVersionCheckDefault {
-		dvcm = T.Factory.dataVersionCheckMode
+		dvcm = T.Factory.DataVersionCheckMode
 	}
 	return dvcm
 }

@@ -392,7 +392,9 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		if err != nil {
 			return result, pagesCount, fmt.Errorf("EntityDef.SelectEntities: failed to execute count query '%s': %w", countQuery, err)
 		}
-		defer countRows.Close()
+		defer func() {
+			_ = countRows.Close()
+		}()
 		if countRows.Next() {
 			err = countRows.Scan(&pagesCount)
 			if err != nil {
