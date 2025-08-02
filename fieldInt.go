@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// FieldValueInt is the int64 field value implementation.
 type FieldValueInt struct {
 	fieldValueBase
 	v   int64

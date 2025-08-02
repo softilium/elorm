@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// FieldValueString is the string field value implementation.
 type FieldValueString struct {
 	fieldValueBase
 	v   string

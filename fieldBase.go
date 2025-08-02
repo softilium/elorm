@@ -1,5 +1,6 @@
 package elorm
 
+// IFieldValue is the interface for field values in elorm.
 type IFieldValue interface {
 	Def() *FieldDef
 	Entity() *Entity

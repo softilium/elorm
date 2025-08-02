@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// IEntity is the interface for entities in elorm.
 type IEntity interface {
 	RefString() string
 	IsNew() bool
@@ -19,6 +20,7 @@ type IEntity interface {
 	Def() *EntityDef
 }
 
+// Entity represents a database entity in elorm.
 type Entity struct {
 	Factory   *Factory
 	entityDef *EntityDef
@@ -31,30 +33,37 @@ type Entity struct {
 	isNew bool
 }
 
+// Def returns the entity definition for this entity.
 func (T *Entity) Def() *EntityDef {
 	return T.entityDef
 }
 
+// GetValues returns a map of all field values for this entity.
 func (T *Entity) GetValues() map[string]IFieldValue {
 	return T.Values
 }
 
+// RefString returns the string representation of this entity's reference.
 func (T *Entity) RefString() string {
 	return T.ref.AsString()
 }
 
+// IsNew returns true if this entity has not been saved to the database yet.
 func (T *Entity) IsNew() bool {
 	return T.isNew
 }
 
+// IsDeleted returns true if this entity is marked for deletion.
 func (T *Entity) IsDeleted() bool {
 	return T.isDeleted.Get()
 }
 
+// SetIsDeleted sets the deletion status of this entity.
 func (T *Entity) SetIsDeleted(newValue bool) {
 	T.isDeleted.Set(newValue)
 }
 
+// DataVersion returns the current data version of this entity.
 func (T *Entity) DataVersion() string {
 	return T.dataVersion.Get()
 }
@@ -266,6 +275,7 @@ func (T *Entity) valuesToMap(defs map[*FieldDef]bool) (map[string]any, error) {
 	return vm, nil
 }
 
+// MarshalJSON implements json.Marshaler interface for JSON serialization.
 func (T *Entity) MarshalJSON() ([]byte, error) {
 	vm, err := T.valuesToMap(nil)
 	if err != nil {
@@ -274,6 +284,7 @@ func (T *Entity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(vm)
 }
 
+// UnmarshalJSON implements json.Unmarshaler interface for JSON deserialization.
 func (T *Entity) UnmarshalJSON(b []byte) error {
 
 	oldRef := T.RefString()
@@ -371,6 +382,7 @@ func (T *Entity) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// LoadFrom copies field values from another entity into this entity.
 func (T *Entity) LoadFrom(src IEntity, predefinedFields bool) error {
 	if src == nil {
 		return fmt.Errorf("Entity.LoadFrom: source entity is nil")

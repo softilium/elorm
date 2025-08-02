@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Filter operation constants for filtering in SelectEntities.
 const (
 	FilterEQ        = 50
 	FilterLIKE      = 55
@@ -21,6 +22,7 @@ const (
 	FilterOrGroup   = 210
 )
 
+// Filter represents a filter condition for entity selection (SelectEntities).
 type Filter struct {
 	Op      int
 	LeftOp  *FieldDef
@@ -28,6 +30,7 @@ type Filter struct {
 	Childs  []*Filter
 }
 
+// AddFilterEQ creates a filter for equality comparison.
 func AddFilterEQ(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -39,6 +42,7 @@ func AddFilterEQ(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterLIKE creates a filter for LIKE string comparison.
 func AddFilterLIKE(leftField *FieldDef, rightValue string) *Filter {
 	if leftField == nil || leftField.Type != FieldDefTypeString {
 		return nil
@@ -50,6 +54,7 @@ func AddFilterLIKE(leftField *FieldDef, rightValue string) *Filter {
 	}
 }
 
+// AddFilterNOEQ creates a filter for inequality comparison.
 func AddFilterNOEQ(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -61,6 +66,7 @@ func AddFilterNOEQ(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterGT creates a filter for greater than comparison.
 func AddFilterGT(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -72,6 +78,7 @@ func AddFilterGT(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterGE creates a filter for greater than or equal comparison.
 func AddFilterGE(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -83,6 +90,7 @@ func AddFilterGE(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterLT creates a filter for less than comparison.
 func AddFilterLT(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -94,6 +102,7 @@ func AddFilterLT(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterLE creates a filter for less than or equal comparison.
 func AddFilterLE(leftField *FieldDef, rightValue any) *Filter {
 	if leftField == nil {
 		return nil
@@ -105,6 +114,7 @@ func AddFilterLE(leftField *FieldDef, rightValue any) *Filter {
 	}
 }
 
+// AddFilterIN creates a filter for IN comparison with multiple values.
 func AddFilterIN(leftField *FieldDef, rightValues ...any) *Filter {
 	if leftField == nil || len(rightValues) == 0 {
 		return nil
@@ -115,6 +125,8 @@ func AddFilterIN(leftField *FieldDef, rightValues ...any) *Filter {
 		RightOp: rightValues,
 	}
 }
+
+// AddFilterNOTIN creates a filter for NOT IN comparison with multiple values.
 func AddFilterNOTIN(leftField *FieldDef, rightValues ...any) *Filter {
 	if leftField == nil || len(rightValues) == 0 {
 		return nil
@@ -126,6 +138,7 @@ func AddFilterNOTIN(leftField *FieldDef, rightValues ...any) *Filter {
 	}
 }
 
+// AddFilterIsNULL creates a filter for NULL value check.
 func AddFilterIsNULL(leftField *FieldDef) *Filter {
 	if leftField == nil {
 		return nil
@@ -137,6 +150,7 @@ func AddFilterIsNULL(leftField *FieldDef) *Filter {
 	}
 }
 
+// AddAndGroup creates a filter group with AND logic for combining multiple filters.
 func AddAndGroup(childs ...*Filter) *Filter {
 	return &Filter{
 		Op:      FilterAndGroup,
@@ -146,6 +160,7 @@ func AddAndGroup(childs ...*Filter) *Filter {
 	}
 }
 
+// AddOrGroup creates a filter group with OR logic for combining multiple filters.
 func AddOrGroup(childs ...*Filter) *Filter {
 	return &Filter{
 		Op:      FilterOrGroup,
@@ -247,11 +262,13 @@ func (T *Filter) renderWhereClause() (string, error) {
 	return "", nil
 }
 
+// SortItem represents a sort condition element for SelectEntities
 type SortItem struct {
 	Field *FieldDef
 	Asc   bool
 }
 
+// SelectEntities retrieves entities from the database with filtering, sorting, and pagination.
 func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*Entity, pagesCount int, err error) {
 	if filters == nil {
 		filters = []*Filter{}

@@ -7,30 +7,38 @@ import (
 	"time"
 )
 
+// Predefined field names for common fields in entities.
 const (
 	RefFieldName         = "Ref"
 	IsDeletedFieldName   = "IsDeleted"
 	DataVersionFieldName = "DataVersion"
 )
 
-type EntityHandlerFuncNoContext func(entity any) error                  // we should instantiate entity before calling this handler
-type EntityHandlerFunc func(ctx context.Context, entity any) error      // we should instantiate entity before calling this handler
-type EntityHandlerFuncByRef func(ctx context.Context, ref string) error // we can call this handler without instantiating entity, just by reference for better performance
+// EntityHandlerFuncNoContext is a type of handler when we have instantiated entity.
+// Used for handler fillNewHandlers
+type EntityHandlerFuncNoContext func(entity any) error
 
+// EntityHandlerFunc is a function type for handling entities with context: beforeSave, afterSave, beforeDelete, etc.
+type EntityHandlerFunc func(ctx context.Context, entity any) error
+
+// EntityHandlerFuncByRef is a function type for handling entities by reference with context.
+// Entity is not instantiated, only reference is provided.
+type EntityHandlerFuncByRef func(ctx context.Context, ref string) error
+
+// EntityDef describes the definition of an entity.
 type EntityDef struct {
-	Factory              *Factory
-	DataVersionCheckMode int // DataVersionCheckNever, DataVersionCheckDefault, DataVersionCheckAlways
-	ObjectName           string
-	TableName            string
-	Fragments            []string // fragments are used to define reusable parts of entity definitions
-	FieldDefs            []*FieldDef
-	IndexDefs            []*IndexDef
-	RefField             *FieldDef
-	IsDeletedField       *FieldDef                // field for soft delete
-	DataVersionField     *FieldDef                // field for data versioning
-	Wrap                 func(source *Entity) any // optional function to wrap the entity type into custom struct
-
-	AutoExpandFieldsForJSON map[*FieldDef]bool // if specified, these fields will be automatically expanded when serializing to JSON
+	Factory                 *Factory                 // Owning factory, used to access database and other resources
+	DataVersionCheckMode    int                      // DataVersionCheckNever, DataVersionCheckDefault, DataVersionCheckAlways
+	ObjectName              string                   // name of the object, elorm-gen created strongly typed structs based on this name
+	TableName               string                   // SQL table name, if empty, it will be generated from ObjectName
+	Fragments               []string                 // fragments are used to define reusable parts of entity definitions
+	FieldDefs               []*FieldDef              // defined fields. All predefined fields (Ref, IsDeleted, DataVersion) are automatically added to this list.
+	IndexDefs               []*IndexDef              // defined indexes. PK doesn't need to be defined here, it is always created automatically
+	RefField                *FieldDef                // Primary Key, ID
+	IsDeletedField          *FieldDef                // field for soft delete
+	DataVersionField        *FieldDef                // field for data versioning
+	Wrap                    func(source *Entity) any // optional function to wrap the entity type into custom struct (used by elorm-gen)
+	AutoExpandFieldsForJSON map[*FieldDef]bool       // if specified, these fields will be automatically expanded when serializing to JSON
 
 	fillNewHandlers           []EntityHandlerFuncNoContext
 	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
@@ -40,6 +48,7 @@ type EntityDef struct {
 	beforeDeleteHandlers      []EntityHandlerFunc
 }
 
+// AddStringFieldDef adds a string field definition to this entity def.
 func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -54,6 +63,7 @@ func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*
 	return nr, nil
 }
 
+// AddBoolFieldDef adds a boolean field definition to this entity def.
 func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -68,6 +78,7 @@ func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*FieldDef, erro
 	return nr, nil
 }
 
+// AddDateTimeFieldDef adds a datetime field definition to this entity def.
 func (T *EntityDef) AddDateTimeFieldDef(name string) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -83,6 +94,7 @@ func (T *EntityDef) AddDateTimeFieldDef(name string) (*FieldDef, error) {
 	return nr, nil
 }
 
+// AddIntFieldDef adds an integer field definition to this entity def.
 func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -97,6 +109,7 @@ func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*FieldDef, erro
 	return nr, nil
 }
 
+// AddRefFieldDef adds a reference field definition to this entity def.
 func (T *EntityDef) AddRefFieldDef(name string, refType *EntityDef) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -111,6 +124,7 @@ func (T *EntityDef) AddRefFieldDef(name string, refType *EntityDef) (*FieldDef, 
 	return nr, nil
 }
 
+// AddNumericFieldDef adds a numeric field definition to this entity def.
 func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, DefValue float64) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
@@ -127,6 +141,7 @@ func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, De
 	return nr, nil
 }
 
+// FieldDefByName returns the field definition with the specified name.
 func (T *EntityDef) FieldDefByName(name string) *FieldDef {
 	for _, v := range T.FieldDefs {
 		if strings.EqualFold(v.Name, name) {
@@ -136,6 +151,7 @@ func (T *EntityDef) FieldDefByName(name string) *FieldDef {
 	return nil
 }
 
+// SqlTableName returns the SQL table name for this entity definition.
 func (T *EntityDef) SqlTableName() (string, error) {
 	switch T.Factory.dbDialect {
 	case DbDialectPostgres, DbDialectMSSQL, DbDialectMySQL, DbDialectSQLite:
@@ -410,6 +426,7 @@ func (T *EntityDef) ensureDBStructureSQLite() error {
 	return nil
 }
 
+// ActualDataVersionCheckMode returns the effective data version check mode for this entity.
 func (T *EntityDef) ActualDataVersionCheckMode() int {
 	if T.Factory.AggressiveReadingCache {
 		return DataVersionCheckNever

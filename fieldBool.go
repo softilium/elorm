@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// FieldValueBool is the bool field value implementation.
 type FieldValueBool struct {
 	fieldValueBase
 	v   bool

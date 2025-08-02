@@ -5,9 +5,10 @@ import (
 	"reflect"
 )
 
-const refSplitter = "$$"
+const refSplitter = "$$"   //separator between unique ID and entity type in reference strings
 const refFieldLength = 107 // length of Ref field in characters, used for string representation of references
 
+// FieldValueRef is the reference (navigation) field value implementation. It supports lazy loading of referenced entity.
 type FieldValueRef struct {
 	fieldValueBase
 	factory *Factory

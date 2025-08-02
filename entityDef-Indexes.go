@@ -6,12 +6,13 @@ import (
 	"strings"
 )
 
+// IndexDef represents an index definition for an Entity struct.
 type IndexDef struct {
 	Unique    bool
 	FieldDefs []*FieldDef
 }
 
-type indexItem struct { // for comparison between target and real indexes
+type indexItem struct {
 	name    string
 	unique  bool
 	fields  []string
@@ -383,6 +384,15 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 	return real, nil
 }
 
+// AddIndex adds a new index to the entity definition.
+// The index can be unique or non-unique, and is defined over one or more fields.
+// Index will be created or updated automatically in scope of ensureDatabaseIndexes() method.
+// Parameters:
+//   - Unique: specifies whether the index should enforce uniqueness.
+//   - fld: variadic list of FieldDef representing the fields to include in the index.
+//
+// Returns:
+//   - error: describing the reason for failure, or nil if the index was added successfully.
 func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
 	if len(fld) == 0 {
 		return fmt.Errorf("EntityDef.AddIndex: no fields provided for index")

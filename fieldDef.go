@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Supported field types
 const (
 	// 6 field types are supported
 	FieldDefTypeString   = 100
@@ -15,6 +16,7 @@ const (
 	FieldDefTypeDateTime = 600
 )
 
+// FieldDef describes a field in an entity.
 type FieldDef struct {
 	EntityDef          *EntityDef
 	Name               string

@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// FieldValueNumeric is the float64 field value implementation.
 type FieldValueNumeric struct {
 	fieldValueBase
 	v   float64

@@ -18,12 +18,14 @@ const (
 	DbDialectSQLite   = 400
 )
 
+// Mode of checking data version when loading entities from cache and saving entities.
 const (
 	DataVersionCheckNever   = -1
 	DataVersionCheckDefault = 0
 	DataVersionCheckAlways  = 1
 )
 
+// Factory manages entities, keeps database connections, entitiies cache, and handles transactions.
 type Factory struct {
 	loadedEntities       *expirable.LRU[string, *Entity]
 	dataVersionCheckMode int // controlled by setDataVersionCheckMode, default is DataVersionCheckDefault
@@ -69,42 +71,49 @@ func addHandler[ht any](
 	return nil
 }
 
+// AddFillNewHandler adds a handler that will be called when creating new entities. dest can be an EntityDef pointer or a fragment name.
 func (f *Factory) AddFillNewHandler(dest any, handler EntityHandlerFuncNoContext) error {
 	return addHandler(f, dest, handler, "AddFillNewHandler",
 		func(def *EntityDef) []EntityHandlerFuncNoContext { return def.fillNewHandlers },
 		func(def *EntityDef, newValue []EntityHandlerFuncNoContext) { def.fillNewHandlers = newValue })
 }
 
+// AddBeforeSaveHandlerByRef adds a handler that will be called before saving entities by reference. dest can be an EntityDef pointer or a fragment name.
 func (f *Factory) AddBeforeSaveHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
 	return addHandler(f, dest, handler, "AddBeforeSaveHandlerByRef",
 		func(def *EntityDef) []EntityHandlerFuncByRef { return def.beforeSaveHandlerByRefs },
 		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.beforeSaveHandlerByRefs = newValue })
 }
 
+// AddBeforeSaveHandler adds a handler that will be called before saving entities. dest can be an EntityDef pointer or a fragment name.
 func (f *Factory) AddBeforeSaveHandler(dest any, handler EntityHandlerFunc) error {
 	return addHandler(f, dest, handler, "AddBeforeSaveHandler",
 		func(def *EntityDef) []EntityHandlerFunc { return def.beforeSaveHandlers },
 		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeSaveHandlers = newValue })
 }
 
+// AddAfterSaveHandler adds a handler that will be called after saving entities. dest
 func (f *Factory) AddAfterSaveHandler(dest any, handler EntityHandlerFunc) error {
 	return addHandler(f, dest, handler, "AddAfterSaveHandler",
 		func(def *EntityDef) []EntityHandlerFunc { return def.afterSaveHandlers },
 		func(def *EntityDef, newValue []EntityHandlerFunc) { def.afterSaveHandlers = newValue })
 }
 
+// AddBeforeDeleteHandlerByRef adds a handler that will be called before deleting entities by reference. dest
 func (f *Factory) AddBeforeDeleteHandlerByRef(dest any, handler EntityHandlerFuncByRef) error {
 	return addHandler(f, dest, handler, "AddBeforeDeleteHandlerByRef",
 		func(def *EntityDef) []EntityHandlerFuncByRef { return def.beforeDeleteHandlerByRefs },
 		func(def *EntityDef, newValue []EntityHandlerFuncByRef) { def.beforeDeleteHandlerByRefs = newValue })
 }
 
+// AddBeforeDeleteHandler adds a handler that will be called before deleting entities. dest can be an EntityDef pointer or a fragment name.
 func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) error {
 	return addHandler(f, dest, handler, "AddBeforeDeleteHandler",
 		func(def *EntityDef) []EntityHandlerFunc { return def.beforeDeleteHandlers },
 		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeDeleteHandlers = newValue })
 }
 
+// BeginTran begins a database transactionor increases the nested transaction level if already in a transaction.
 func (f *Factory) BeginTran() (*sql.Tx, error) {
 
 	if f.nestedTxLevel == 0 {
@@ -119,6 +128,7 @@ func (f *Factory) BeginTran() (*sql.Tx, error) {
 	return f.activeTx, nil
 }
 
+// CommitTran decreases transation level and commits the transaction if it was the last one.
 func (f *Factory) CommitTran(tx *sql.Tx) error {
 
 	if f.nestedTxLevel == 0 {
@@ -136,6 +146,7 @@ func (f *Factory) CommitTran(tx *sql.Tx) error {
 	return nil
 }
 
+// Query executes a query that returns rows.
 func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
 	if f.dbDialect == DbDialectSQLite {
 		if f.nestedTxLevel > 0 {
@@ -146,6 +157,7 @@ func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
 	return f.db.Query(query, args...)
 }
 
+// Exec executes a query without returning any rows.
 func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
 	if f.dbDialect == DbDialectSQLite {
 		if f.nestedTxLevel > 0 {
@@ -156,6 +168,7 @@ func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
 	return f.db.Exec(query, args...)
 }
 
+// RollbackTran rolls back a database transaction and zeroes the transaction level.
 func (f *Factory) RollbackTran(tx *sql.Tx) error {
 	if f.nestedTxLevel == 0 {
 		return fmt.Errorf("Factory.RollbackTran: no active transaction to rollback")
@@ -166,6 +179,7 @@ func (f *Factory) RollbackTran(tx *sql.Tx) error {
 	return err
 }
 
+// CreateFactory creates a new Factory instance with the specified database dialect and connection string.
 func CreateFactory(dbDialect string, connectionString string) (*Factory, error) {
 	if dbDialect == "" {
 		return nil, fmt.Errorf("Factory.CreateFactory: dbDialect is empty")
@@ -209,10 +223,12 @@ func CreateFactory(dbDialect string, connectionString string) (*Factory, error) 
 	return r, nil
 }
 
+// DbDialect returns the database dialect for this factory.
 func (T *Factory) DbDialect() int {
 	return T.dbDialect
 }
 
+// SetDataVersionCheckMode sets default data version checking mode for this factory. It can be overrided by ENtityDef level.
 func (T *Factory) SetDataVersionCheckMode(mode int) error {
 	if mode != DataVersionCheckNever && mode != DataVersionCheckAlways {
 		return fmt.Errorf("factory.SetDataVersionCheckMode: invalid mode %d, must be one of -1, 1", mode)
@@ -221,6 +237,7 @@ func (T *Factory) SetDataVersionCheckMode(mode int) error {
 	return nil
 }
 
+// CreateEntityDef creates a new entity definition with the specified object and table names.
 func (T *Factory) CreateEntityDef(ObjectName string, TableName string) (*EntityDef, error) {
 	if ObjectName == "" {
 		return nil, fmt.Errorf("Factory.CreateEntityDef: ObjectName is empty")
@@ -269,6 +286,7 @@ func (T *Factory) CreateEntityDef(ObjectName string, TableName string) (*EntityD
 	return r, nil
 }
 
+// NewRef generates a new reference string for the given entity definition. It will include def ObjectName if provided.
 func (T *Factory) NewRef(def *EntityDef) string {
 	if def == nil {
 		return NewRef()
@@ -276,6 +294,7 @@ func (T *Factory) NewRef(def *EntityDef) string {
 	return fmt.Sprintf("%s%s%s", NewRef(), refSplitter, strings.ToLower(def.ObjectName))
 }
 
+// IsRef checks if the given string is a valid reference and returns the associated entity definition.
 func (T *Factory) IsRef(s string) (bool, *EntityDef) {
 	if s == "" {
 		return false, nil
@@ -331,10 +350,12 @@ func (T *Factory) createEntityImpl(def *EntityDef, fillNew bool) (*Entity, error
 	return r, nil
 }
 
+// CreateEntity creates a new entity instance with the given entity definition.
 func (T *Factory) CreateEntity(def *EntityDef) (*Entity, error) {
 	return T.createEntityImpl(def, true)
 }
 
+// CreateEntityWrapped creates a new entity instance wrapped in a custom struct if defined.
 func (T *Factory) CreateEntityWrapped(def *EntityDef) (any, error) {
 	if def == nil {
 		return nil, fmt.Errorf("Factory.CreateEntityWrapped: def is nil")
