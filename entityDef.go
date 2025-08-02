@@ -14,15 +14,16 @@ const (
 	DataVersionFieldName = "DataVersion"
 )
 
-// EntityHandlerFuncNoContext is a type of handler when we have instantiated entity.
-// Used for handler fillNewHandlers
+// EntityHandlerFuncNoContext is a function type for handling entities without context.
+// Used for fillNewHandlers.
 type EntityHandlerFuncNoContext func(entity any) error
 
-// EntityHandlerFunc is a function type for handling entities with context: beforeSave, afterSave, beforeDelete, etc.
+// EntityHandlerFunc is a function type for handling entities with context.
+// Used for beforeSave, afterSave, beforeDelete handlers.
 type EntityHandlerFunc func(ctx context.Context, entity any) error
 
 // EntityHandlerFuncByRef is a function type for handling entities by reference with context.
-// Entity is not instantiated, only reference is provided.
+// Entity is not instantiated; only reference is provided.
 type EntityHandlerFuncByRef func(ctx context.Context, ref string) error
 
 // EntityDef describes the definition of an entity.

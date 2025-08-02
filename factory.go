@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
+// Database dialect constants for supported database types.
 const (
 	DbDialectPostgres = 100
 	DbDialectMSSQL    = 200
@@ -18,14 +19,14 @@ const (
 	DbDialectSQLite   = 400
 )
 
-// Mode of checking data version when loading entities from cache and saving entities.
+// Data version check mode constants for controlling version checking behavior.
 const (
 	DataVersionCheckNever   = -1
 	DataVersionCheckDefault = 0
 	DataVersionCheckAlways  = 1
 )
 
-// Factory manages entities, keeps database connections, entitiies cache, and handles transactions.
+// Factory manages entities, keeps database connections, entities cache, and handles transactions.
 type Factory struct {
 	loadedEntities       *expirable.LRU[string, *Entity]
 	dataVersionCheckMode int // controlled by setDataVersionCheckMode, default is DataVersionCheckDefault
@@ -374,6 +375,7 @@ func (T *Factory) CreateEntityWrapped(def *EntityDef) (any, error) {
 
 }
 
+// LoadEntity loads an entity from factory cache or from the database by its reference string.
 func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 
 	ok, def := T.IsRef(Ref)
@@ -456,6 +458,7 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 	return res, nil
 }
 
+// LoadEntityWrapped loads an entity from the database and wraps it in a custom struct if defined.
 func (T *Factory) LoadEntityWrapped(Ref string) (any, error) {
 	res, err := T.LoadEntity(Ref)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Filter operation constants for filtering in SelectEntities.
+// Filter operation constants for entity filtering in SelectEntities.
 const (
 	FilterEQ        = 50
 	FilterLIKE      = 55

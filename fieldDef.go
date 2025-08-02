@@ -7,7 +7,6 @@ import (
 
 // Supported field types
 const (
-	// 6 field types are supported
 	FieldDefTypeString   = 100
 	FieldDefTypeInt      = 200
 	FieldDefTypeBool     = 300

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// This field type stores date + time value, without timezone.
+// FieldValueDateTime is the datetime field value implementation that stores date and time values without timezone.
 type FieldValueDateTime struct {
 	fieldValueBase
 	v   time.Time
