@@ -17,30 +17,69 @@ func sendHttpError(w http.ResponseWriter, message string, statusCode int) {
 
 // RestApiConfig is a configuration for standard REST API operations.
 type RestApiConfig[T IEntity] struct {
-	Def                EntityDef
-	LoadEntityFunc     func(ref string) (*T, error)
-	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pagesCount int, err error)
-	CreateEntityFunc   func() (*T, error)
-	AdditionalHeaders  map[string]string
-	AutoFilters        bool
-	DefaultPageSize    int
 
-	EnableGetOne     bool
-	EnableGetList    bool
-	EnablePost       bool
-	EnablePut        bool
-	EnableDelete     bool
+	// Entity Definition
+	Def EntityDef
+
+	// Typically, it's LoadXXX from generated code, e.g. LoadShop
+	LoadEntityFunc func(ref string) (*T, error)
+
+	// Typically, it's SelectEntities from generated code, e.g. DB.ShopDef.SelectEntities
+	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pagesCount int, err error)
+
+	// Typically, it's CreateXXX from generated code, e.g. DB.CreateShop
+	CreateEntityFunc func() (*T, error)
+
+	// Additional headers to include into the response
+	AdditionalHeaders map[string]string
+
+	// Automatically merge filters based on query parameters
+	AutoFilters bool
+
+	// Default number of items per page in REST API responses
+	DefaultPageSize int
+
+	// Enable GET request for a single entity
+	EnableGetOne bool
+
+	// Enable GET request for a list of entities
+	EnableGetList bool
+
+	// Enable POST request to create a new entity
+	EnablePost bool
+
+	// Enable PUT request to update an existing entity
+	EnablePut bool
+
+	// Enable DELETE request to remove an entity
+	EnableDelete bool
+
+	// Enable soft delete functionality (marking an entity as deleted instead of removing it)
 	EnableSoftDelete bool
 
-	ParamRef      string
-	ParamPageNo   string
-	ParamPageSize string
-	ParamSortBy   string
+	// Query parameter name for entity reference, "ref" by default
+	ParamRef string
 
+	// Query parameter name for page number, "pageno" by default
+	ParamPageNo string
+
+	// Query parameter name for page size, "pagesize" by default
+	ParamPageSize string
+
+	// Query parameter name for sorting, "sortby" by default
+	ParamSortBy string
+
+	// Middleware function to execute before processing the request, returns true to continue or false to stop
 	BeforeMiddleware func(http.ResponseWriter, *http.Request) bool
-	Context          func(r *http.Request) context.Context
-	AdditionalFilter func(r *http.Request) ([]*Filter, error)   //for list
-	DefaultSorts     func(r *http.Request) ([]*SortItem, error) //for list
+
+	// Function to get context from the request, can be used to pass additional values to event handlers
+	Context func(r *http.Request) context.Context
+
+	// Function to get additional filters based on the request, result should be merged with user-defined filters
+	AdditionalFilter func(r *http.Request) ([]*Filter, error)
+
+	// Function to get default sorting options based on the request, result is used when we have no user-defined sortsshould be merged with user-defined sorts
+	DefaultSorts func(r *http.Request) ([]*SortItem, error)
 }
 
 // DefaultPageSize is the default number of items per page in REST API responses.

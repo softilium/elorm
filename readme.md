@@ -266,7 +266,6 @@ Also you can define fragment: set of fields and indexes to reuse between entitie
 
 </details>
 
-
 ### Run elorm-gen to generate code
 
 Install elorm-gen:
@@ -345,7 +344,6 @@ Right after initialization DB could be used to process entities. Lets seed users
 
 ```go
 
-
 	// create default admin on empty users table
 
 	users, _, err := DB.UserDef.SelectEntities(nil, nil, 0, 0)
@@ -395,17 +393,133 @@ Pay an attention all methods such as Save(), LoadEntity(), DeleteEntity() take c
 
 ### Create REST API from entities
 
-(to be done)
+ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting and paging are supported out of the box. Let's look on example:
 
-### JSON marshaling
+```go
+	// first define config of Api element
+	goodsRestApiConfig := elorm.CreateStdRestApiConfig(
+		*DB.GoodDef.EntityDef,
+		DB.LoadGood,
+		DB.GoodDef.SelectEntities,
+		DB.CreateGood)
 
-(to be done)
+	// define additional filter. This filter should be merged always to user-defined filters
+	goodsRestApiConfig.AdditionalFilter = func(r *http.Request) ([]*elorm.Filter, error) {
+		res := []*elorm.Filter{}
+		res = append(res, elorm.AddFilterEQ(DB.GoodDef.IsDeleted, false))
+		shopref := r.URL.Query().Get("shopref")
+		if shopref != "" {
+			res = append(res, elorm.AddFilterEQ(DB.GoodDef.OwnerShop, shopref))
+		}
+		return res, nil
+	}
+	// define default sort order. User can define it's own using query parameter
+	goodsRestApiConfig.DefaultSorts = func(r *http.Request) ([]*elorm.SortItem, error) {
+		return []*elorm.SortItem{{Field: DB.GoodDef.OrderInShop, Asc: true}}, nil
+	}
+	// Context func creates all needed values to pass to event handlers
+	goodsRestApiConfig.Context = LoadUserFromHttpToContext
+
+	//here we connext handler to end-point on standard http router 
+	router.HandleFunc("/api/goods", elorm.HandleRestApi(goodsRestApiConfig))
+```
+
+See more about RestApiConfig: 
+https://pkg.go.dev/github.com/softilium/elorm#RestApiConfig 
 
 ### Using standard Go idiomatic approaches
 
-database/sql and contexts
+ELORM stay on top on best Go idiomatic code approaches when it is possible and as many as it possible.
 
-(to be done)
+#### database/sql
+
+Developers can use standard "database/sql" approach to retrieve data and ELORM can enrich Scanner interface:
+
+```go
+	rows, err := DB.Query("select ref from goods order by ref")
+	checkErr(err)
+	defer rows.Close()
+	idx := 0
+	for rows.Next() {
+		rowmap, err := dbc.FetchRowMap(rows)
+		checkErr(err)
+
+		// access to row column as typed Entity
+		loadedGood, err := rowmap["ref"].(*el.FieldValueRef).Get()
+		checkErr(err)
+
+		// access to lazy-loading property CreatedBy() (User) and its property Username
+		fmt.Println(loadedGood.CreatedBy().Username())
+	}
+```
+#### context
+
+Standard Go context is used to pass any additional parameters to event handlers:
+
+```go
+	// lets define before save handler for any entity with reference to BusinessObject fragment (Shop, Good)
+	err := DB.AddBeforeSaveHandler(BusinessObjectsFragment, func(ctx context.Context, entity any) error {
+		user, ok := ctx.Value(userContextKey).(*User)
+		if !ok {
+			user = nil
+		}
+		et := entity.(BusinessObjectsFragmentMethods)
+		ent := entity.(elorm.IEntity)
+		if ent.IsNew() {
+			et.SetCreatedAt(time.Now())
+			if user != nil {
+				et.SetCreatedBy(user)
+			}
+			if et.CreatedBy() == nil {
+				return fmt.Errorf("createdBy is required for new entity %s", ent.Def().ObjectName)
+			}
+		} else {
+			et.SetModifiedAt(time.Now())
+			if user != nil {
+				et.SetModifiedBy(user)
+			}
+		}
+	})
+
+	AddUserContext := func (ctx context.Context, user *User) context.Context {
+		if user != nil {
+			ctx = context.WithValue(ctx, userContextKey, user)
+		}
+		return ctx
+	}
+
+	// get first user as Current from database
+	CurrentUser := DB.UserDef.SelectEntities(nil, nil, 1, 1)
+	saveCtx := AddUserContext(context.Background())
+	NewGood, err := DB.CreateGood()
+	if err != nil {
+		logError(err)
+	}
+
+	//save new Good, NewGood.CreatedBy should be initialized by CurrentUser via event handler
+	err = NewGood.Save(saveCtx)
+	if err != nil {
+		logError(err)
+	}
+
+```
+
+#### JSON marshaling/unmarchaling
+
+By default, eny entity can be serialized to JSON and deserialized from JSON. Standard Marshaler/Unmarshaler interfaces are implemented. 
+
+Ocasionally, we need to "expand" some references (navigation properties). For example, it is common approach to serialize user not just as user ID but as object with base properties: refID, userName, email, etc.
+
+Elorm supports automatic references expanding for JSON when you need it. Use AutoExpandFieldsForJSON property for Entity Definition:
+
+```go
+	dbc.UserDef.AutoExpandFieldsForJSON = map[*elorm.FieldDef]bool{
+		dbc.UserDef.Ref:      true,
+		dbc.UserDef.Username: true,
+	}
+```
+
+After that all fields that reference to User should be expanded to Ref, Username when you serialize entity to JSON.
 
 ### Define and redefine entities on the fly
 
@@ -420,5 +534,13 @@ database/sql and contexts
 (to be done)
 
 ### Caching entities, lazy-loading reference (navigation) properties
+
+(to be done)
+
+### Handling Transactions
+
+(to be done)
+
+### Fragments
 
 (to be done)
