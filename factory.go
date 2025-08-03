@@ -116,7 +116,6 @@ func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) er
 
 // BeginTran begins a database transactionor increases the nested transaction level if already in a transaction.
 func (f *Factory) BeginTran() (*sql.Tx, error) {
-
 	if f.nestedTxLevel == 0 {
 		newTx, err := f.db.Begin()
 		if err != nil {
@@ -125,13 +124,11 @@ func (f *Factory) BeginTran() (*sql.Tx, error) {
 		f.activeTx = newTx
 	}
 	f.nestedTxLevel++
-
 	return f.activeTx, nil
 }
 
 // CommitTran decreases transation level and commits the transaction if it was the last one.
 func (f *Factory) CommitTran(tx *sql.Tx) error {
-
 	if f.nestedTxLevel == 0 {
 		return fmt.Errorf("Factory.CommitTran: no active transaction to commit")
 	}
@@ -149,22 +146,16 @@ func (f *Factory) CommitTran(tx *sql.Tx) error {
 
 // Query executes a query that returns rows.
 func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
-	if f.dbDialect == DbDialectSQLite {
-		if f.nestedTxLevel > 0 {
-			return f.activeTx.Query(query, args...)
-		}
-		return f.db.Query(query, args...)
+	if f.nestedTxLevel > 0 {
+		return f.activeTx.Query(query, args...)
 	}
 	return f.db.Query(query, args...)
 }
 
 // Exec executes a query without returning any rows.
 func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
-	if f.dbDialect == DbDialectSQLite {
-		if f.nestedTxLevel > 0 {
-			return f.activeTx.Exec(query, args...)
-		}
-		return f.db.Exec(query, args...)
+	if f.nestedTxLevel > 0 {
+		return f.activeTx.Exec(query, args...)
 	}
 	return f.db.Exec(query, args...)
 }

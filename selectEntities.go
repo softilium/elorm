@@ -186,7 +186,7 @@ var renderGroupOpsMap = map[int]string{
 	FilterOrGroup:  " or ",
 }
 
-func (T *Filter) renderWhereClause() (string, error) {
+func (T *Filter) renderWhereClause(f *Factory) (string, error) {
 	switch T.Op {
 	case FilterEQ, FilterNOEQ, FilterGE, FilterGT, FilterLT, FilterLE:
 		if T.LeftOp != nil && T.RightOp != nil {
@@ -210,7 +210,16 @@ func (T *Filter) renderWhereClause() (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
 			}
-			return fmt.Sprintf("%s LIKE '%%%v%%'", colname, T.RightOp), nil
+			rop, ok := T.RightOp.(string)
+			if !ok {
+				return "", fmt.Errorf("Filter.renderWhereClause: expected string for LIKE operation, got %T", T.RightOp)
+			}
+			// by default LIKE os case-sensitive on SQLITE
+			if f.dbDialect == DbDialectSQLite {
+				return fmt.Sprintf("LOWER(%s) LIKE '%v'", colname, strings.ToLower(rop)), nil
+			} else {
+				return fmt.Sprintf("%s LIKE '%v'", colname, rop), nil
+			}
 		}
 	case FilterIN, FilterNOTIN:
 		if T.LeftOp != nil && T.RightOp != nil {
@@ -251,7 +260,7 @@ func (T *Filter) renderWhereClause() (string, error) {
 	case FilterAndGroup, FilterOrGroup:
 		results := make([]string, len(T.Childs))
 		for i, v := range T.Childs {
-			clause, err := v.renderWhereClause()
+			clause, err := v.renderWhereClause(f)
 			if err != nil {
 				return "", fmt.Errorf("Filter.renderWhereClause: failed to render child clause: %w", err)
 			}
@@ -320,7 +329,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 				if i > 0 {
 					builder.WriteString(" and ")
 				}
-				clause, err := f.renderWhereClause()
+				clause, err := f.renderWhereClause(T.Factory)
 				if err != nil {
 					return "", fmt.Errorf("EntityDef.SelectEntities: failed to render where clause: %w", err)
 				}
