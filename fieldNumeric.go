@@ -4,29 +4,43 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // FieldValueNumeric is the float64 field value implementation.
 type FieldValueNumeric struct {
 	fieldValueBase
-	v   float64
-	old float64
+	v    float64
+	old  float64
+	lock sync.Mutex
 }
 
 func (T *FieldValueNumeric) Set(newValue float64) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
 func (T *FieldValueNumeric) Get() float64 {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueNumeric) GetOld() float64 {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.old
 }
 
 func (T *FieldValueNumeric) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
@@ -35,6 +49,9 @@ func (T *FieldValueNumeric) mask() string {
 }
 
 func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -51,10 +68,16 @@ func (T *FieldValueNumeric) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueNumeric) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return strings.TrimSpace(fmt.Sprintf(T.mask(), T.v))
 }
 
 func (T *FieldValueNumeric) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		return fmt.Errorf("FieldValueNumeric.Scan: nil value for field %s", T.def.Name)
 	}

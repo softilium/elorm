@@ -2,34 +2,51 @@ package elorm
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
 // FieldValueDateTime is the datetime field value implementation that stores date and time values without timezone.
 type FieldValueDateTime struct {
 	fieldValueBase
-	v   time.Time
-	old time.Time
+	v    time.Time
+	old  time.Time
+	lock sync.Mutex
 }
 
 func (T *FieldValueDateTime) Set(newValue time.Time) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.isDirty = T.isDirty || newValue.Compare(T.v) != 0
 	T.v = newValue
 }
 
 func (T *FieldValueDateTime) Get() time.Time {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueDateTime) GetOld() time.Time {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.old
 }
 
 func (T *FieldValueDateTime) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
 func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -51,10 +68,16 @@ func (T *FieldValueDateTime) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueDateTime) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v.Format(T.def.DateTimeJSONFormat)
 }
 
 func (T *FieldValueDateTime) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		T.v = time.Time{}
 		T.old = T.v

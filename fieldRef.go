@@ -3,6 +3,7 @@ package elorm
 import (
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 const refSplitter = "$$"   //separator between unique ID and entity type in reference strings
@@ -14,6 +15,7 @@ type FieldValueRef struct {
 	factory *Factory
 	v       string
 	old     string
+	lock    sync.Mutex
 }
 
 func isNilInterfaceValue(i interface{}) bool {
@@ -33,6 +35,9 @@ func (T *FieldValueRef) SetFactory(newValue *Factory) {
 }
 
 func (T *FieldValueRef) Set(newValue any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	stringValue := ""
 	switch v := newValue.(type) {
 	case string:
@@ -75,6 +80,9 @@ func (T *FieldValueRef) Set(newValue any) error {
 }
 
 func (T *FieldValueRef) Get() (any, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	r, err := T.factory.LoadEntityWrapped(T.v)
 	if err != nil {
 		return nil, fmt.Errorf("FieldValueRef.Get: failed to load entity: %w", err)
@@ -83,6 +91,9 @@ func (T *FieldValueRef) Get() (any, error) {
 }
 
 func (T *FieldValueRef) GetOld() (any, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	r, err := T.factory.LoadEntityWrapped(T.old)
 	if err != nil {
 		return nil, fmt.Errorf("FieldValueRef.GetOld: failed to load entity: %w", err)
@@ -91,10 +102,16 @@ func (T *FieldValueRef) GetOld() (any, error) {
 }
 
 func (T *FieldValueRef) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
 func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -111,10 +128,16 @@ func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueRef) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueRef) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		T.v = ""
 		T.isDirty = false

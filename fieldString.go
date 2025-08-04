@@ -3,16 +3,21 @@ package elorm
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // FieldValueString is the string field value implementation.
 type FieldValueString struct {
 	fieldValueBase
-	v   string
-	old string
+	v    string
+	old  string
+	lock sync.Mutex
 }
 
 func (T *FieldValueString) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -30,27 +35,45 @@ func (T *FieldValueString) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueString) Set(newValue string) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
 func (T *FieldValueString) Get() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueString) GetOld() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.old
 }
 
 func (T *FieldValueString) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
 func (T *FieldValueString) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueString) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		T.v = ""
 		T.isDirty = false

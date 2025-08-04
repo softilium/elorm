@@ -2,33 +2,50 @@ package elorm
 
 import (
 	"fmt"
+	"sync"
 )
 
 // FieldValueBool is the bool field value implementation.
 type FieldValueBool struct {
 	fieldValueBase
-	v   bool
-	old bool
+	v    bool
+	old  bool
+	lock sync.Mutex
 }
 
 func (T *FieldValueBool) Set(newValue bool) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
 func (T *FieldValueBool) Get() bool {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueBool) GetOld() bool {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.old
 }
 
 func (T *FieldValueBool) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
 func (T *FieldValueBool) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -58,6 +75,9 @@ func (T *FieldValueBool) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueBool) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if T.v {
 		return "TRUE"
 	}
@@ -65,6 +85,9 @@ func (T *FieldValueBool) AsString() string {
 }
 
 func (T *FieldValueBool) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		T.v = false
 	} else {

@@ -100,6 +100,9 @@ func (T *Entity) Save(ctx context.Context) error {
 		}
 	}
 
+	T.Factory.loadsaveLock.Lock()
+	defer T.Factory.loadsaveLock.Unlock()
+
 	tableName, err := T.entityDef.SqlTableName()
 	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to get SQL table name for entity %s: %w", T.entityDef.ObjectName, err)
@@ -130,9 +133,7 @@ func (T *Entity) Save(ctx context.Context) error {
 
 	if T.isNew {
 
-		if dvCheck == DataVersionCheckAlways {
-			T.dataVersion.Set(NewRef())
-		}
+		T.dataVersion.Set(NewRef())
 
 		fv := make([]string, 0, fieldCount)
 		for _, v := range T.entityDef.FieldDefs {
@@ -209,7 +210,6 @@ func (T *Entity) Save(ctx context.Context) error {
 	}
 
 	err = T.Factory.CommitTran(tx)
-
 	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to commit transaction: %w", err)
 	}

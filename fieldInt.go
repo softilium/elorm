@@ -2,33 +2,50 @@ package elorm
 
 import (
 	"fmt"
+	"sync"
 )
 
 // FieldValueInt is the int64 field value implementation.
 type FieldValueInt struct {
 	fieldValueBase
-	v   int64
-	old int64
+	v    int64
+	old  int64
+	lock sync.Mutex
 }
 
 func (T *FieldValueInt) Set(newValue int64) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
 func (T *FieldValueInt) Get() int64 {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.v
 }
 
 func (T *FieldValueInt) GetOld() int64 {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return T.old
 }
 
 func (T *FieldValueInt) resetOld() {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	T.old = T.v
 }
 
 func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	v2 := T.v
 	if len(v) == 1 {
 		ok := false
@@ -49,10 +66,16 @@ func (T *FieldValueInt) SqlStringValue(v ...any) (string, error) {
 }
 
 func (T *FieldValueInt) AsString() string {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	return fmt.Sprintf("%d", T.v)
 }
 
 func (T *FieldValueInt) Scan(v any) error {
+	T.lock.Lock()
+	defer T.lock.Unlock()
+
 	if v == nil {
 		T.v = 0
 		T.isDirty = false
