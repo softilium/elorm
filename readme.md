@@ -533,7 +533,7 @@ After that all fields that reference to User should be expanded to Ref, Username
 
 ### Work with old field values
 
-(to be done)
+When we load entity and change values for some fields then old values are accessible via GetOld() methods before we saved entity to database. It is useful to analyze changes in BeforeSave handlers.
 
 ### Cache entities, lazy-loading reference (navigation) properties
 
@@ -541,16 +541,70 @@ After that all fields that reference to User should be expanded to Ref, Username
 
 ### Handling Transactions
 
-(to be done)
+Factory struct created and holds database connector (*sql.DB) based on dialect and connection string parameters. 
+
+ELORM handles transactions on all standard operations such as save or delete. BeforeSave event handler works within main transaction and when handler returns an error, save transactions will be rolled back.
+
+AfterSave event handler works after main transaction is commited.
+
+Developer don't need to start transaction before saving or deleting entities. But when you need transaction to wrap some actions into it, recommended approach is:
+
+```go
+		tx, err := DB.BeginTran()
+		if err != nil {
+			HandleErr(err)
+			return
+		}
+		defer func() { _ = DB.RollbackTran(tx) }()
+
+		old, _, err := DB.GoodTagDef.SelectEntities(
+			[]*elorm.Filter{elorm.AddFilterEQ(DB.GoodTagDef.Good, good)}, nil, 0, 0)
+		if err != nil {
+			HandleErr(err)
+			return
+		}
+		for _, ot := range old {
+			err = DB.DeleteEntity(r.Context(), ot.RefString())
+			if err != nil {
+				HandleErr(err)
+				return
+			}
+		}
+		for _, line := range result {
+			if line.Tagged {
+				gt, err := DB.CreateGoodTag()
+				gt.SetGood(good)
+				gt.SetTag(tg)
+				err = gt.Save(r.Context())
+				if err != nil {
+					HandleErr(err))
+					return
+				}
+			}
+		}
+		err = DB.CommitTran(tx)
+		if err != nil {
+			HandleErr(err))
+			return
+		}
+```
+
+Note about SQLITE.
+
+Imagine, we have two entity types: Order and OrderLine. Order owns some Order lines and order lines should be deleted before order is deleted.
+
+Typically, we implement BeforeDelete handler for Order to delete OrderLines. Each DeleteEntity has its own transaction and we want to rollback all tranasctions set when any is rolled back. For most databases it is implemented by different *sql.Tx transactions and any rollback leads to rollback all another. And now we try to use this approach on SQLITE ...
+
+SQLITE doesn't support multiple writing transactions at the same time. Because of this we use different approach for "nested" transactions. We start first trsnsaction as usual. But second transaction doesn't really start on SQLITE but we increase transaction nested level on Factory struct. When we commit last transaction we decrease that counter. If counter goes to zero, we issue "Commit" to SQLITE. It allows us to emulate "nested" transactions behavior for SQLITE. 
+
+One drawback of this solution is we need to stay away from goroutines when we use SQLITE. One goroutine can break nested transaction counter for another goroutine.
+
+We fully support goroutines and multithreading in ELORM for MySQL, Postgres and Microsoft SQL databases.
 
 ### Fragments
 
 (to be done)
 
 ### Wrapping entities into strongly-typed structs with methods
-
-(to be done)
-
-### Multithreading, with notes about SQLITE
 
 (to be done)
