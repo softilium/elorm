@@ -441,11 +441,13 @@ Developers can use standard "database/sql" approach to retrieve data and ELORM c
 	defer rows.Close()
 	idx := 0
 	for rows.Next() {
-		rowmap, err := dbc.FetchRowMap(rows)
+
+        var ref string
+        rows.Scan(&ref)
 		checkErr(err)
 
 		// access to row column as typed Entity
-		loadedGood, err := rowmap["ref"].(*el.FieldValueRef).Get()
+		loadedGood, err := DB.LoadGood(ref)
 		checkErr(err)
 
 		// access to lazy-loading property CreatedBy() (User) and its property Username
