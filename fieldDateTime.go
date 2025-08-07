@@ -18,7 +18,6 @@ func (T *FieldValueDateTime) Set(newValue time.Time) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
-	T.isDirty = T.isDirty || newValue.Compare(T.v) != 0
 	T.v = newValue
 }
 
@@ -100,7 +99,6 @@ func (T *FieldValueDateTime) Scan(v any) error {
 	default:
 		return fmt.Errorf("fieldValueDateTime.Scan: expected time.Time or []uint8 for field %s, got %T", T.def.Name, v)
 	}
-	T.isDirty = false
 	T.old = T.v
 	return nil
 }

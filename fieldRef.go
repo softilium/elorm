@@ -54,7 +54,6 @@ func (T *FieldValueRef) Set(newValue any) error {
 
 	if stringValue == "" {
 		T.v = ""
-		T.isDirty = T.isDirty || stringValue != T.v
 		return nil
 	}
 
@@ -74,7 +73,6 @@ func (T *FieldValueRef) Set(newValue any) error {
 		return fmt.Errorf("FieldValueRef.Set: ref %s does not match field type %s", deft.ObjectName, T.def.Name)
 	}
 
-	T.isDirty = T.isDirty || stringValue != T.v
 	T.v = stringValue
 	return nil
 }
@@ -143,7 +141,6 @@ func (T *FieldValueRef) Scan(v any) error {
 
 	if v == nil {
 		T.v = ""
-		T.isDirty = false
 		return nil
 	}
 
@@ -160,7 +157,6 @@ func (T *FieldValueRef) Scan(v any) error {
 
 	if asStr == "" {
 		T.v = ""
-		T.isDirty = false
 		T.old = T.v
 		return nil
 	}
@@ -181,7 +177,6 @@ func (T *FieldValueRef) Scan(v any) error {
 		T.def = defTypeFromID.RefField
 	}
 	T.v = asStr
-	T.isDirty = false
 	T.old = T.v
 	return nil
 }

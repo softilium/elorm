@@ -19,7 +19,6 @@ func (T *FieldValueNumeric) Set(newValue float64) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
-	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
@@ -102,7 +101,6 @@ func (T *FieldValueNumeric) Scan(v any) error {
 	default:
 		return fmt.Errorf("FieldValueNumeric.Scan: unsupported type %T for field %s", v, T.def.Name)
 	}
-	T.isDirty = false
 	T.old = T.v
 	return nil
 }

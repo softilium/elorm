@@ -38,7 +38,6 @@ func (T *FieldValueString) Set(newValue string) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
-	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
@@ -76,7 +75,6 @@ func (T *FieldValueString) Scan(v any) error {
 
 	if v == nil {
 		T.v = ""
-		T.isDirty = false
 		T.old = T.v
 		return nil
 	}
@@ -89,7 +87,6 @@ func (T *FieldValueString) Scan(v any) error {
 		return fmt.Errorf("FieldValueString.Scan: type assertion failed: expected string or []uint8 for field %s, got %T", T.def.Name, v)
 	}
 
-	T.isDirty = false
 	T.old = T.v
 	return nil
 }

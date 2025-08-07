@@ -17,7 +17,6 @@ func (T *FieldValueInt) Set(newValue int64) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
-	T.isDirty = T.isDirty || newValue != T.v
 	T.v = newValue
 }
 
@@ -78,7 +77,6 @@ func (T *FieldValueInt) Scan(v any) error {
 
 	if v == nil {
 		T.v = 0
-		T.isDirty = false
 		T.old = T.v
 		return nil
 	}
@@ -87,7 +85,6 @@ func (T *FieldValueInt) Scan(v any) error {
 		return fmt.Errorf("fieldValueInt.Scan: expected int64 for field %s, got %T", T.def.Name, v)
 	}
 	T.v = asInt
-	T.isDirty = false
 	T.old = T.v
 	return nil
 }

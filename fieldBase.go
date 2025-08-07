@@ -11,9 +11,8 @@ type IFieldValue interface {
 }
 
 type fieldValueBase struct {
-	def     *FieldDef
-	entity  *Entity
-	isDirty bool
+	def    *FieldDef
+	entity *Entity
 }
 
 func (T *fieldValueBase) Def() *FieldDef {
