@@ -16,7 +16,7 @@ Elorm implements a set of ideas from my business application engineering experie
 - **Use the standard database/sql** to work with data. Engineers can use regular SQL select queries as well as specially designed methods.
 - **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting).
 
-## Get started
+## Quick start with ELORM
 
 ### Define entities in JSON
 
@@ -427,7 +427,7 @@ ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting an
 See more about RestApiConfig: 
 https://pkg.go.dev/github.com/softilium/elorm#RestApiConfig 
 
-### Using standard Go idiomatic approaches
+### Use standard Go idiomatic approaches
 
 ELORM stay on top on best Go idiomatic code approaches when it is possible and as many as it possible.
 
@@ -529,11 +529,11 @@ After that all fields that reference to User should be expanded to Ref, Username
 
 (to be done)
 
-### old field values, easy work with changes
+### Work with old field values
 
 (to be done)
 
-### Caching entities, lazy-loading reference (navigation) properties
+### Cache entities, lazy-loading reference (navigation) properties
 
 (to be done)
 
@@ -542,5 +542,13 @@ After that all fields that reference to User should be expanded to Ref, Username
 (to be done)
 
 ### Fragments
+
+(to be done)
+
+### Wrapping entities into strongly-typed structs with methods
+
+(to be done)
+
+### Multithreading, with notes about SQLITE
 
 (to be done)

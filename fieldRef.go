@@ -117,10 +117,13 @@ func (T *FieldValueRef) SqlStringValue(v ...any) (string, error) {
 		ok := false
 		v2, ok = v[0].(string)
 		if !ok {
-			return "", fmt.Errorf("FieldValueRef.SqlStringValue: expected string value for field %s, got %T", T.def.Name, v)
+			v3, ok := v[0].(IEntity)
+			if !ok {
+				return "", fmt.Errorf("FieldValueRef.SqlStringValue: expected string value or IEntity for field %s, got %T", T.def.Name, v)
+			}
+			v2 = v3.RefString()
 		}
 	}
-
 	if T.factory == nil {
 		return "", fmt.Errorf("FieldValueRef.SqlStringValue: missing factory")
 	}
