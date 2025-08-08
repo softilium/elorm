@@ -116,7 +116,7 @@ func (f *Factory) AddBeforeDeleteHandler(dest any, handler EntityHandlerFunc) er
 		func(def *EntityDef, newValue []EntityHandlerFunc) { def.beforeDeleteHandlers = newValue })
 }
 
-// BeginTran begins a database transactionor increases the nested transaction level if already in a transaction.
+// BeginTran begins a database transaction or increases the nested transaction level if already in a transaction.
 func (f *Factory) BeginTran() (*sql.Tx, error) {
 	if f.dbDialect != DbDialectSQLite {
 		return f.db.Begin()
@@ -132,7 +132,7 @@ func (f *Factory) BeginTran() (*sql.Tx, error) {
 	return f.activeTx, nil
 }
 
-// CommitTran decreases transation level and commits the transaction if it was the last one.
+// CommitTran decreases transaction level and commits the transaction if it was the last one.
 func (f *Factory) CommitTran(tx *sql.Tx) error {
 	if f.dbDialect != DbDialectSQLite {
 		return tx.Commit()

@@ -150,6 +150,18 @@ func AddFilterIsNULL(leftField *FieldDef) *Filter {
 	}
 }
 
+// AddFilterIsNOTNULL creates a filter for NOT NULL value check.
+func AddFilterIsNOTNULL(leftField *FieldDef) *Filter {
+	if leftField == nil {
+		return nil
+	}
+	return &Filter{
+		Op:      FilterIsNOTNULL,
+		LeftOp:  leftField,
+		RightOp: nil,
+	}
+}
+
 // AddAndGroup creates a filter group with AND logic for combining multiple filters.
 func AddAndGroup(childs ...*Filter) *Filter {
 	return &Filter{
@@ -171,14 +183,16 @@ func AddOrGroup(childs ...*Filter) *Filter {
 }
 
 var renderOpsMap = map[int]string{
-	FilterEQ:    "=",
-	FilterNOEQ:  "<>",
-	FilterGT:    ">",
-	FilterGE:    ">=",
-	FilterLT:    "<",
-	FilterLE:    "<=",
-	FilterIN:    "IN",
-	FilterNOTIN: "NOT IN",
+	FilterEQ:        "=",
+	FilterNOEQ:      "<>",
+	FilterGT:        ">",
+	FilterGE:        ">=",
+	FilterLT:        "<",
+	FilterLE:        "<=",
+	FilterIN:        "IN",
+	FilterNOTIN:     "NOT IN",
+	FilterIsNULL:    "IS NULL",
+	FilterIsNOTNULL: "IS NOT NULL",
 }
 
 var renderGroupOpsMap = map[int]string{
@@ -241,21 +255,13 @@ func (T *Filter) renderWhereClause(f *Factory) (string, error) {
 			}
 			return fmt.Sprintf("%s %s (%s)", colname, renderOpsMap[T.Op], strings.Join(values, ", ")), nil
 		}
-	case FilterIsNULL:
+	case FilterIsNULL, FilterIsNOTNULL:
 		if T.LeftOp != nil {
 			colname, err := T.LeftOp.SqlColumnName()
 			if err != nil {
 				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
 			}
-			return fmt.Sprintf("%s IS NULL", colname), nil
-		}
-	case FilterIsNOTNULL:
-		if T.LeftOp != nil {
-			colname, err := T.LeftOp.SqlColumnName()
-			if err != nil {
-				return "", fmt.Errorf("Filter.renderWhereClause: failed to get SQL column name: %w", err)
-			}
-			return fmt.Sprintf("NOT %s IS NULL", colname), nil
+			return fmt.Sprintf("%s %s", colname, renderOpsMap[T.Op]), nil
 		}
 	case FilterAndGroup, FilterOrGroup:
 		results := make([]string, len(T.Childs))
@@ -339,7 +345,10 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 		}
 
 		generated := builder.String()
-		isdn, _ := T.IsDeletedField.SqlColumnName()
+		isdn, err := T.IsDeletedField.SqlColumnName()
+		if err != nil {
+			return "", fmt.Errorf("EntityDef.SelectEntities: failed to get IsDeleted column name: %w", err)
+		}
 		if T.UseSoftDelete && strings.LastIndex(generated, isdn) < strings.LastIndex(generated, "from") { // we have no "isdeleted" filter after "from"
 			if len(filters) > 0 {
 				builder.WriteString(" and ")

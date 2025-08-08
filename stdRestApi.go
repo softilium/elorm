@@ -75,7 +75,7 @@ type RestApiConfig[T IEntity] struct {
 	// Function to get additional filters based on the request, result should be merged with user-defined filters
 	AdditionalFilter func(r *http.Request) ([]*Filter, error)
 
-	// Function to get default sorting options based on the request, result is used when we have no user-defined sortsshould be merged with user-defined sorts
+	// Function to get default sorting options based on the request, result is used when we have no user-defined sorts. Should be merged with user-defined sorts
 	DefaultSorts func(r *http.Request) ([]*SortItem, error)
 }
 

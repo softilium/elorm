@@ -14,8 +14,8 @@ Elorm implements a set of ideas from my business application engineering experie
 - **Lazy-load navigation properties**. It retrieves a referenced record on first access to the navigation property, from cache or from the database. You can have many navigation properties without impacting performance.
 - **Global entity cache** to track all loaded/created entities and reduce redundant queries to the database. Of course, you can tune cache size to balance between speed and memory for your application.
 - **Use the standard database/sql** to work with data. Engineers can use regular SQL select queries as well as specially designed methods.
-- **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting). Also entities supports JSON serialization out of the box.
-- **Soft delete mode for entities** allows us to transparently mark entities as deleted without deleting it from database with minimum efforts.
+- **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting). Also, entities support JSON serialization out of the box.
+- **Soft delete mode for entities** allows us to transparently mark entities as deleted without deleting them from the database with minimum effort.
 
 ## Quick start with ELORM
 
@@ -23,9 +23,9 @@ Elorm implements a set of ideas from my business application engineering experie
 
 We use standard json schema validation defined here: https://github.com/softilium/elorm-gen/blob/master/elorm.schema.json
 
-Each entity consist of fields and indexes.
+Each entity consists of fields and indexes.
 
-Also you can define fragment: set of fields and indexes to reuse between entities. Later you can define event handler routenes for fragment as for entity type.
+Also, you can define fragments: sets of fields and indexes to reuse between entities. Later you can define event handler routines for fragments as for entity types.
 
 <details>
 <summary>sample.schema.json (fragment)</summary>
