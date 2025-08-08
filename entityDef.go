@@ -41,6 +41,15 @@ type EntityDef struct {
 	Wrap                    func(source *Entity) any // optional function to wrap the entity type into custom struct (used by elorm-gen)
 	AutoExpandFieldsForJSON map[*FieldDef]bool       // if specified, these fields will be automatically expanded when serializing to JSON
 
+	// UseSoftDelete=true leads to:
+	// 1) SeletecEntities() includes IsDeleted=false filter always unless developer specified it explicitly
+	// 2) HandleRestApi on DELETE requests will set IsDeleted=true instead of deleting the entity
+	// Note: entity has IsDelete field always, developer can use always
+	//
+	// UseSoftDelete=false leads to:
+	// 1) Save() raises error if IsDeleted=true and UseSoftDelete=false
+	UseSoftDelete bool
+
 	fillNewHandlers           []EntityHandlerFuncNoContext
 	beforeSaveHandlerByRefs   []EntityHandlerFuncByRef
 	beforeSaveHandlers        []EntityHandlerFunc

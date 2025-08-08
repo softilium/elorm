@@ -83,6 +83,10 @@ func (T *Entity) DataVersion() string {
 func (T *Entity) Save(ctx context.Context) error {
 	var err error
 
+	if !T.Def().UseSoftDelete && T.IsDeleted() {
+		return fmt.Errorf("Entity.Save: cannot save entity with IsDeleted=true, UseSoftDelete is false")
+	}
+
 	dvCheck := T.entityDef.DataVersionCheckMode
 	if dvCheck == DataVersionCheckDefault {
 		dvCheck = T.Factory.dataVersionCheckMode

@@ -323,6 +323,7 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 				filters = append(filters[:i], filters[i+1:]...)
 			}
 		}
+
 		if len(filters) > 0 {
 			builder.WriteString(" where ")
 			for i, f := range filters {
@@ -335,6 +336,22 @@ func (T *EntityDef) SelectEntities(filters []*Filter, sorts []*SortItem, pageNo 
 				}
 				builder.WriteString(clause)
 			}
+		}
+
+		generated := builder.String()
+		isdn, _ := T.IsDeletedField.SqlColumnName()
+		if T.UseSoftDelete && strings.LastIndex(generated, isdn) < strings.LastIndex(generated, "from") { // we have no "isdeleted" filter after "from"
+			if len(filters) > 0 {
+				builder.WriteString(" and ")
+			} else {
+				builder.WriteString(" where ")
+			}
+			flt := AddFilterEQ(T.IsDeletedField, false)
+			clause, err := flt.renderWhereClause(T.Factory)
+			if err != nil {
+				return "", fmt.Errorf("EntityDef.SelectEntities: failed to render soft delete where clause: %w", err)
+			}
+			builder.WriteString(clause)
 		}
 		if len(sorts) > 0 && !totals {
 			builder.WriteString(" order by ")

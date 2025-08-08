@@ -54,9 +54,6 @@ type RestApiConfig[T IEntity] struct {
 	// Enable DELETE request to remove an entity
 	EnableDelete bool
 
-	// Enable soft delete functionality (marking an entity as deleted instead of removing it)
-	EnableSoftDelete bool
-
 	// Query parameter name for entity reference, "ref" by default
 	ParamRef string
 
@@ -100,12 +97,11 @@ func CreateStdRestApiConfig[T IEntity](
 		AutoFilters:        true,
 		DefaultPageSize:    DefaultPageSize,
 
-		EnableGetOne:     true,
-		EnableGetList:    true,
-		EnablePost:       true,
-		EnablePut:        true,
-		EnableDelete:     true,
-		EnableSoftDelete: true,
+		EnableGetOne:  true,
+		EnableGetList: true,
+		EnablePost:    true,
+		EnablePut:     true,
+		EnableDelete:  true,
 
 		ParamRef:      "ref",
 		ParamPageNo:   "pageno",
@@ -268,7 +264,7 @@ func responseDelete[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r
 			ctx = config.Context(r)
 		}
 
-		if config.EnableSoftDelete {
+		if config.Def.UseSoftDelete {
 			ent, err := config.Def.Factory.LoadEntity(ref)
 			if err != nil {
 				sendHttpError(w, fmt.Sprintf("%sfailed to load entity: %v", methodPrefix, err), http.StatusNotFound)
