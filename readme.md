@@ -14,7 +14,8 @@ Elorm implements a set of ideas from my business application engineering experie
 - **Lazy-load navigation properties**. It retrieves a referenced record on first access to the navigation property, from cache or from the database. You can have many navigation properties without impacting performance.
 - **Global entity cache** to track all loaded/created entities and reduce redundant queries to the database. Of course, you can tune cache size to balance between speed and memory for your application.
 - **Use the standard database/sql** to work with data. Engineers can use regular SQL select queries as well as specially designed methods.
-- **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting).
+- **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting). Also entities supports JSON serialization out of the box.
+- **Soft delete mode for entities** allows us to transparently mark entities as deleted without deleting it from database with minimum efforts.
 
 ## Quick start with ELORM
 
@@ -406,7 +407,7 @@ ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting an
 	// define additional filter. This filter should be merged always to user-defined filters
 	goodsRestApiConfig.AdditionalFilter = func(r *http.Request) ([]*elorm.Filter, error) {
 		res := []*elorm.Filter{}
-		res = append(res, elorm.AddFilterEQ(DB.GoodDef.IsDeleted, false))
+		res = append(res, elorm.AddFilterGT(DB.GoodDef.Price 10))
 		shopref := r.URL.Query().Get("shopref")
 		if shopref != "" {
 			res = append(res, elorm.AddFilterEQ(DB.GoodDef.OwnerShop, shopref))
@@ -426,6 +427,17 @@ ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting an
 
 See more about RestApiConfig: 
 https://pkg.go.dev/github.com/softilium/elorm#RestApiConfig 
+
+### Soft delete for entities
+
+Entity definition supports UseSoftDelete mode. By default, UseSoftDelete is false.
+
+In this mode ELORM adds filter "IsDeleted=true" to SelectEntities() filter unless developer adds his own filter on "IsDeleted".
+Also REST API handles DELETE requests as "lets mark entity as IsDelete=true" instead of deleting it.
+
+In default mode (UseSoftDelete=false) Save() method returns an error is we set IsDeleted to true.
+
+Note. Each entity has IsDeleted field, UseSoftDelete=false doesn't remove field.
 
 ### Use standard Go idiomatic approaches
 
