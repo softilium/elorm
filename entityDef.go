@@ -328,7 +328,7 @@ func (T *EntityDef) ensureDBStructureMySQL() error {
 		return fmt.Errorf("EntityDef.ensureDBStructureMySQL: failed to get SQL table name: %w", err)
 	}
 
-	_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(36) primary key)", tn))
+	_, err = tran.Exec(fmt.Sprintf("create table if not exists %s (ref varchar(%d) primary key)", tn, refFieldLength))
 	if err != nil {
 		_ = T.Factory.RollbackTran(tran)
 		return fmt.Errorf("EntityDef.ensureDBStructureMySQL: failed to create table: %w", err)

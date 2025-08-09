@@ -139,7 +139,7 @@ func (T *FieldDef) sqlColumnTypeMySQL() (string, error) {
 	case FieldDefTypeBool:
 		return "tinyint(1)", nil
 	case FieldDefTypeRef:
-		return "varchar(36)", nil
+		return fmt.Sprintf("varchar(%d)", refFieldLength), nil
 	case FieldDefTypeDateTime:
 		return "datetime", nil
 	case FieldDefTypeNumeric:
