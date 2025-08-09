@@ -237,7 +237,7 @@ func (T *Factory) DbDialect() int {
 	return T.dbDialect
 }
 
-// SetDataVersionCheckMode sets default data version checking mode for this factory. It can be overrided by ENtityDef level.
+// SetDataVersionCheckMode sets default data version checking mode for this factory. It can be overridden by EntityDef level.
 func (T *Factory) SetDataVersionCheckMode(mode int) error {
 	if mode != DataVersionCheckNever && mode != DataVersionCheckAlways {
 		return fmt.Errorf("factory.SetDataVersionCheckMode: invalid mode %d, must be one of -1, 1", mode)

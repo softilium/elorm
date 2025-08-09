@@ -18,6 +18,7 @@ Elorm implements a set of ideas from my business application engineering experie
 - **Use the standard database/sql** to work with data. Engineers can use regular SQL select queries as well as specially designed methods.
 - **Generate a standard REST API** for each entity type. It should handle CRUD operations as well as grid/table operations (filtering, paging, sorting). Also, entities support JSON serialization out of the box.
 - **Soft delete mode for entities** allows us to transparently mark entities as deleted without deleting them from the database with minimum effort.
+- **Optimistic locks** allow a safe way for multi-user working with databases.
 
 ## Quick start with ELORM
 
@@ -286,7 +287,7 @@ elorm-gen sample.schema.json dbcontext-sample.go
 
 dbcontext-sample.go should contain generated structs for your entities from sample.schema.json. It also contains methods for operating with data: loading, creating new entities, caching entities, and handling database structures.
 
-By default generated file uses package name "main", but you can redefine in on JSON or on command line:
+By default generated file uses package name "main", but you can redefine it in JSON or on command line:
 
 ```
 elorm-gen sample.schema.json dbcontext-sample.go --package m2
@@ -343,7 +344,7 @@ After that your DB is ready to work with entitites.
 
 ### Work with entities
 
-Right after initialization DB could be used to process entities. Lets seed users table on first start and remove expired tokens:
+Right after initialization DB could be used to process entities. Let's seed users table on first start and remove expired tokens:
 
 ```go
 
@@ -392,11 +393,11 @@ Right after initialization DB could be used to process entities. Lets seed users
 
 ```
 
-Pay an attention all methods such as Save(), LoadEntity(), DeleteEntity() take ctx parameter to pass value to event handlers.
+Pay attention that all methods such as Save(), LoadEntity(), DeleteEntity() take ctx parameter to pass value to event handlers.
 
 ### Create REST API from entities
 
-ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting and paging are supported out of the box. Let's look on example:
+ELORM allows you to create standard HTTP REST APIs for entities. Filtering, sorting and paging are supported out of the box. Let's look at an example:
 
 ```go
 	// first define config of Api element
@@ -406,7 +407,7 @@ ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting an
 		DB.GoodDef.SelectEntities,
 		DB.CreateGood)
 
-	// define additional filter. This filter should be merged always to user-defined filters
+	// define additional filter. This filter should always be merged with user-defined filters
 	goodsRestApiConfig.AdditionalFilter = func(r *http.Request) ([]*elorm.Filter, error) {
 		res := []*elorm.Filter{}
 		res = append(res, elorm.AddFilterGT(DB.GoodDef.Price 10))
@@ -423,7 +424,7 @@ ELORM allow to create standart HTTP REST Api for entities. Filtering, sorting an
 	// Context func creates all needed values to pass to event handlers
 	goodsRestApiConfig.Context = LoadUserFromHttpToContext
 
-	//here we connext handler to end-point on standard http router 
+	//here we connect handler to end-point on standard http router 
 	router.HandleFunc("/api/goods", elorm.HandleRestApi(goodsRestApiConfig))
 ```
 
@@ -435,11 +436,11 @@ https://pkg.go.dev/github.com/softilium/elorm#RestApiConfig
 Entity definition supports UseSoftDelete mode. By default, UseSoftDelete is false.
 
 In this mode ELORM adds filter "IsDeleted=true" to SelectEntities() filter unless developer adds his own filter on "IsDeleted".
-Also REST API handles DELETE requests as "lets mark entity as IsDelete=true" instead of deleting it.
+Also REST API handles DELETE requests as "let's mark entity as IsDelete=true" instead of deleting it.
 
 In default mode (UseSoftDelete=false) Save() method returns an error is we set IsDeleted to true.
 
-Note. Each entity has IsDeleted field, UseSoftDelete=false doesn't remove field.
+Note. Each entity has IsDeleted field, UseSoftDelete=false doesn't remove the field.
 
 ### Use standard Go idiomatic approaches
 
@@ -473,7 +474,7 @@ Developers can use standard "database/sql" approach to retrieve data and ELORM c
 Standard Go context is used to pass any additional parameters to event handlers:
 
 ```go
-	// lets define before save handler for any entity with reference to BusinessObject fragment (Shop, Good)
+	// let's define before save handler for any entity with reference to BusinessObject fragment (Shop, Good)
 	err := DB.AddBeforeSaveHandler(BusinessObjectsFragment, func(ctx context.Context, entity any) error {
 		user, ok := ctx.Value(userContextKey).(*User)
 		if !ok {
@@ -522,9 +523,9 @@ Standard Go context is used to pass any additional parameters to event handlers:
 
 #### JSON marshaling/unmarchaling
 
-By default, eny entity can be serialized to JSON and deserialized from JSON. Standard Marshaler/Unmarshaler interfaces are implemented. 
+By default, any entity can be serialized to JSON and deserialized from JSON. Standard Marshaler/Unmarshaler interfaces are implemented. 
 
-Ocasionally, we need to "expand" some references (navigation properties). For example, it is common approach to serialize user not just as user ID but as object with base properties: refID, userName, email, etc.
+Occasionally, we need to "expand" some references (navigation properties). For example, it is a common approach to serialize user not just as user ID but as object with base properties: refID, userName, email, etc.
 
 Elorm supports automatic references expanding for JSON when you need it. Use AutoExpandFieldsForJSON property for Entity Definition:
 
@@ -535,15 +536,11 @@ Elorm supports automatic references expanding for JSON when you need it. Use Aut
 	}
 ```
 
-After that all fields that reference to User should be expanded to Ref, Username when you serialize entity to JSON.
-
-### Define and redefine entities on the fly
-
-(to be done)
+After that all fields that reference User should be expanded to Ref, Username when you serialize entity to JSON.
 
 ### DataVersion checking and AggressiveCaching
 
-(to be done)
+We use typical optimistic locks implementation in ELORM. DataVersion field is assigned to new value before each save. And if it is defined on factory and entity def levels, we check that actual database version contains old value of DataVersion field. If it contains a different value, it means another client has updated row in database after we read it last time. In that case Save() returns an error.
 
 ### Work with old field values
 
@@ -551,7 +548,7 @@ When we load entity and change values for some fields then old values are access
 
 ### Cache entities, lazy-loading reference (navigation) properties
 
-(to be done)
+All loaded entities are cached at the factory level using LRU cache. Next LoadEntity() will load entity from cache instead of querying the database. Our internal tests show that it increases speed of loading entities by about 100 times. Developers don't need to worry about cache or do anything to maintain it. 
 
 ### Handling Transactions
 
@@ -559,9 +556,9 @@ Factory struct created and holds database connector (*sql.DB) based on dialect a
 
 ELORM handles transactions on all standard operations such as save or delete. BeforeSave event handler works within main transaction and when handler returns an error, save transactions will be rolled back.
 
-AfterSave event handler works after main transaction is commited.
+AfterSave event handler works after main transaction is committed.
 
-Developer don't need to start transaction before saving or deleting entities. But when you need transaction to wrap some actions into it, recommended approach is:
+Developers don't need to start a transaction before saving or deleting entities. But when you need a transaction to wrap some actions into it, the recommended approach is:
 
 ```go
 		tx, err := DB.BeginTran()
@@ -603,22 +600,24 @@ Developer don't need to start transaction before saving or deleting entities. Bu
 		}
 ```
 
-Note about SQLITE.
+### SQLite and multithreading
 
-Imagine, we have two entity types: Order and OrderLine. Order owns some Order lines and order lines should be deleted before order is deleted.
+Let's use simple example to explain.
 
-Typically, we implement BeforeDelete handler for Order to delete OrderLines. Each DeleteEntity has its own transaction and we want to rollback all tranasctions set when any is rolled back. For most databases it is implemented by different *sql.Tx transactions and any rollback leads to rollback all another. And now we try to use this approach on SQLITE ...
+So, we have two entity types: Order and OrderLine. Order owns some Order lines and order lines should be deleted before order is deleted. Typically, we implement BeforeDelete handler for Order to delete OrderLines. Each DeleteEntity has its own transaction and we want to rollback all transactions when any is rolled back. For most databases it is implemented by different *sql.Tx transactions. Except SQLite.
 
-SQLITE doesn't support multiple writing transactions at the same time. Because of this we use different approach for "nested" transactions. We start first trsnsaction as usual. But second transaction doesn't really start on SQLITE but we increase transaction nested level on Factory struct. When we commit last transaction we decrease that counter. If counter goes to zero, we issue "Commit" to SQLITE. It allows us to emulate "nested" transactions behavior for SQLITE. 
+SQLite doesn't support more than one writing transaction at the same time. Because of this we use different approach for "nested" transactions on SQLite. We start first transaction as usual. But second transaction doesn't really start on SQLite. We just increase transaction level counter. When we commit transaction we decrease that counter. If counter goes to zero, we issue "Commit" to SQLite. It allows us to emulate "nested" transactions behavior for SQLite. 
 
-One drawback of this solution is we need to stay away from goroutines when we use SQLITE. One goroutine can break nested transaction counter for another goroutine.
+Dark side of this solution is that we need to stay away from goroutines when we use SQLite. One goroutine can break "transaction counter" for another goroutine.
 
 We fully support goroutines and multithreading in ELORM for MySQL, Postgres and Microsoft SQL databases.
 
 ### Fragments
 
-(to be done)
+Fragments are just sets of columns, indexes and event handlers. Fragment is defined in JSON using similar way as entity. Later, entities can reference a fragment and all columns from fragment should be copied to entity. We can describe some set of "functionality" and then reuse it many times in many entities. This makes our code compact and easy to understand.
+
+Note, we still use strongly-typed entities and when we remove field from fragment definition, compiler will show all removed field usage lines.
 
 ### Wrapping entities into strongly-typed structs with methods
 
-(to be done)
+Each entity type definition can assign special function that converts "universal" entity into strongly typed one. Strongly typed entity can define methods to access fields, additional service methods, etc. elorm-gen uses this functionality to automatically create strongly typed entities for you based on JSON entity definitions.
