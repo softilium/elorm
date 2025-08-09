@@ -2,6 +2,8 @@
 
 The Golang ORM for crafting elegant, database-powered applications.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/softilium/elorm.svg)](https://pkg.go.dev/github.com/softilium/elorm)
+
 ## Ideas Under the Hood
 
 Elorm implements a set of ideas from my business application engineering experience:
