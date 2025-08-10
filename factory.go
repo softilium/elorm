@@ -152,26 +152,44 @@ func (f *Factory) CommitTran(tx *sql.Tx) error {
 	return nil
 }
 
-// Query executes a query that returns rows.
+// PrepareSql prepares a SQL query by replacing Postgres-style parameters ($1, $2, ...) with MySQL/SQLite-style (?) if needed.
+func (f *Factory) PrepareSql(query string, args ...any) string {
+	result := query
+	if f.dbDialect == DbDialectMySQL || f.dbDialect == DbDialectSQLite {
+		for i := range args {
+			result = strings.ReplaceAll(result, fmt.Sprintf("$%d", i+1), "?")
+		}
+	}
+	return result
+}
+
+// Query is a wrapper for sql.DB.Query(). It always accepts parameters in Postgres style ($1, $2, ...) and converts it to MySQL/SQLite style (?) if needed.
+// And it uses database connection or active transaction depending on the dialect and transaction level.
 func (f *Factory) Query(query string, args ...any) (*sql.Rows, error) {
+
+	query2 := f.PrepareSql(query, args...)
+
 	if f.dbDialect != DbDialectSQLite {
-		return f.db.Query(query, args...)
+		return f.db.Query(query2, args...)
 	}
 	if f.nestedTxLevel > 0 {
-		return f.activeTx.Query(query, args...)
+		return f.activeTx.Query(query2, args...)
 	}
-	return f.db.Query(query, args...)
+	return f.db.Query(query2, args...)
 }
 
 // Exec executes a query without returning any rows.
 func (f *Factory) Exec(query string, args ...any) (sql.Result, error) {
+
+	query2 := f.PrepareSql(query, args...)
+
 	if f.dbDialect != DbDialectSQLite {
-		return f.db.Exec(query, args...)
+		return f.db.Exec(query2, args...)
 	}
 	if f.nestedTxLevel > 0 {
-		return f.activeTx.Exec(query, args...)
+		return f.activeTx.Exec(query2, args...)
 	}
-	return f.db.Exec(query, args...)
+	return f.db.Exec(query2, args...)
 }
 
 // RollbackTran rolls back a database transaction and zeroes the transaction level.
@@ -404,7 +422,8 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 	fromCache, ok := T.loadedEntities.Get(Ref)
 	if ok {
 		if dvcm != DataVersionCheckNever {
-			row := T.db.QueryRow(fmt.Sprintf("select 1 from %s where Ref=%s and DataVersion=%s", tableName, Ref, fromCache.DataVersion()))
+			q := T.PrepareSql(fmt.Sprintf("select 1 from %s where Ref=$1 and DataVersion=$2", tableName), Ref, fromCache.DataVersion())
+			row := T.db.QueryRow(q, Ref, fromCache.DataVersion())
 			var scanBuffer *int
 			if row.Scan(scanBuffer) == sql.ErrNoRows {
 				// The entity is not in the database or it changed, so we need to reload it.
@@ -437,13 +456,7 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 		}
 	}
 
-	sql := ""
-	switch T.dbDialect {
-	case DbDialectPostgres, DbDialectMSSQL:
-		sql = fmt.Sprintf("select %s from %s where ref=$1", strings.Join(fn, ", "), tableName)
-	case DbDialectMySQL, DbDialectSQLite:
-		sql = fmt.Sprintf("select %s from %s where ref=?", strings.Join(fn, ", "), tableName)
-	}
+	sql := fmt.Sprintf("select %s from %s where ref=$1", strings.Join(fn, ", "), tableName)
 	rows, err := T.Query(sql, Ref)
 	if err != nil {
 		return nil, fmt.Errorf("Factory.LoadEntity: failed to query select statement: %w", err)
@@ -606,7 +619,8 @@ func (T *Factory) createRefColumnType() error {
 			return fmt.Errorf("Factory.createRefColumnType: failed to get ref column type: %w", err)
 		}
 		var cnt int
-		row := T.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM sys.types WHERE name = '%s'", refObjIdDomain))
+		sql := T.PrepareSql("SELECT COUNT(*) FROM sys.types WHERE name = $1", refObjIdDomain)
+		row := T.db.QueryRow(sql, refObjIdDomain)
 		err = row.Scan(&cnt)
 		if err != nil {
 			return fmt.Errorf("Factory.createRefColumnType: failed to query sys.types: %w", err)

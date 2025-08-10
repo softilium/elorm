@@ -148,27 +148,25 @@ func (T *EntityDef) loadDatabaseIndexesPostgres() ([]*indexItem, error) {
 		return nil, fmt.Errorf("EntityDef.loadRealIndexes: failed to get SQL table name: %w", err)
 	}
 
-	rows, err := T.Factory.Query(fmt.Sprintf(`
-
-select
-    i.relname as iname,
-	ix.indisunique as uni,
-    a.attname as cname
-from
-    pg_class t, pg_class i, pg_index ix, pg_attribute a 
-where
-    t.oid = ix.indrelid
-    and i.oid = ix.indexrelid
-    and a.attrelid = t.oid
-    and t.relkind = 'r'
-    and a.attnum = ANY(ix.indkey)
-    and t.relname like '%s'
-	and ix.indisprimary=false
-order by
-    i.relname,
-	array_position(ix.indkey, a.attnum)	
-
-	`, tableName))
+	rows, err := T.Factory.Query(`
+		select
+			i.relname as iname,
+			ix.indisunique as uni,
+			a.attname as cname
+		from
+			pg_class t, pg_class i, pg_index ix, pg_attribute a 
+		where
+			t.oid = ix.indrelid
+			and i.oid = ix.indexrelid
+			and a.attrelid = t.oid
+			and t.relkind = 'r'
+			and a.attnum = ANY(ix.indkey)
+			and t.relname like $1
+			and ix.indisprimary=false
+		order by
+			i.relname,
+			array_position(ix.indkey, a.attnum)	
+	`, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.ensureDBIndexesPostgres: failed to query existing indexes: %w", err)
 	}
@@ -209,26 +207,23 @@ func (T *EntityDef) loadDatabaseIndexesMSSQL() ([]*indexItem, error) {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesMSSQL: failed to get SQL table name: %w", err)
 	}
 
-	query := fmt.Sprintf(`
-
-SELECT
-    i.name AS iname,
-    i.is_unique AS uni,
-    c.name AS cname
-FROM
-    sys.indexes i
-    INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-    INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-    INNER JOIN sys.tables t ON i.object_id = t.object_id
-WHERE
-    t.name = '%s'
-    AND i.is_primary_key = 0
-ORDER BY
-    i.name, ic.index_column_id
-	
-	`, tableName)
-
-	rows, err := T.Factory.Query(query)
+	query := `
+		SELECT
+			i.name AS iname,
+			i.is_unique AS uni,
+			c.name AS cname
+		FROM
+			sys.indexes i
+			INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+			INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+			INNER JOIN sys.tables t ON i.object_id = t.object_id
+		WHERE
+			t.name = $1
+			AND i.is_primary_key = 0
+		ORDER BY
+			i.name, ic.index_column_id	
+	`
+	rows, err := T.Factory.Query(query, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesMSSQL: failed to query existing indexes: %w", err)
 	}
@@ -327,11 +322,8 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesSQLite: failed to get SQL table name: %w", err)
 	}
 
-	query := fmt.Sprintf(`
-	PRAGMA index_list('%s')
-	`, tableName)
-
-	rows, err := T.Factory.Query(query)
+	sql := fmt.Sprintf("PRAGMA index_list(%s)", tableName)
+	rows, err := T.Factory.Query(sql)
 	if err != nil {
 		return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesSQLite: failed to query existing indexes: %w", err)
 	}
@@ -353,11 +345,8 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 			continue
 		}
 
-		indexQuery := fmt.Sprintf(`
-		PRAGMA index_info('%s')
-		`, iname)
-
-		indexRows, err := T.Factory.Query(indexQuery)
+		sql = fmt.Sprintf("PRAGMA index_info(%s)", iname)
+		indexRows, err := T.Factory.Query(sql)
 		if err != nil {
 			return nil, fmt.Errorf("EntityDef.loadDatabaseIndexesSQLite: failed to query index info: %w", err)
 		}

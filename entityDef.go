@@ -251,7 +251,7 @@ func (T *EntityDef) ensureDBStructurePostgres() error {
 	}
 
 	var cnt int
-	row := tran.QueryRow(fmt.Sprintf("select count(*) as chk from information_schema.constraint_column_usage where table_name='%s' and constraint_name='%s_pk'", tn, tn))
+	row := tran.QueryRow("select count(*) as chk from information_schema.constraint_column_usage where table_name=$1 and constraint_name=$2", tn, tn+"_pk")
 
 	err = row.Scan(&cnt)
 	if err != nil {
@@ -346,7 +346,8 @@ func (T *EntityDef) ensureDBStructureMySQL() error {
 			return fmt.Errorf("EntityDef.ensureDBStructureMySQL: failed to get SQL column name for field %s: %w", v.Name, err)
 		}
 
-		rows, err := tran.Query(fmt.Sprintf("SELECT 1 FROM information_schema.columns WHERE table_name = '%s' AND column_name = '%s'", tn, coln))
+		query := T.Factory.PrepareSql("SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2", tn, coln)
+		rows, err := tran.Query(query, tn, coln)
 		if err != nil {
 			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructureMySQL: failed to get column information for field %s: %w", v.Name, err)
@@ -400,7 +401,8 @@ func (T *EntityDef) ensureDBStructureSQLite() error {
 			return fmt.Errorf("EntityDef.ensureDBStructureSQLite: failed to get SQL column name for field %s: %w", v.Name, err)
 		}
 
-		rows, err := tran.Query(fmt.Sprintf("PRAGMA table_info(%s)", tn))
+		sql := fmt.Sprintf("PRAGMA table_info(%s)", tn)
+		rows, err := tran.Query(sql, tn)
 		if err != nil {
 			_ = T.Factory.RollbackTran(tran)
 			return fmt.Errorf("EntityDef.ensureDBStructureSQLite: failed to get column information for field %s: %w", v.Name, err)
