@@ -544,7 +544,7 @@ We use typical optimistic locks implementation in ELORM. DataVersion field is as
 
 ### Work with old field values
 
-When we load entity and change values for some fields then old values are accessible via GetOld() methods before we saved entity to database. It is useful to analyze changes in BeforeSave handlers.
+When we load entity and change values for some fields then old values are accessible via Old() methods before we saved entity to database. It is useful to analyze changes in BeforeSave handlers.
 
 ### Cache entities, lazy-loading reference (navigation) properties
 

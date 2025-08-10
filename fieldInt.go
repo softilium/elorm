@@ -27,7 +27,7 @@ func (T *FieldValueInt) Get() int64 {
 	return T.v
 }
 
-func (T *FieldValueInt) GetOld() int64 {
+func (T *FieldValueInt) Old() int64 {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 

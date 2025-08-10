@@ -88,13 +88,13 @@ func (T *FieldValueRef) Get() (any, error) {
 	return r, nil
 }
 
-func (T *FieldValueRef) GetOld() (any, error) {
+func (T *FieldValueRef) Old() (any, error) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
 	r, err := T.factory.LoadEntityWrapped(T.old)
 	if err != nil {
-		return nil, fmt.Errorf("FieldValueRef.GetOld: failed to load entity: %w", err)
+		return nil, fmt.Errorf("FieldValueRef.Old: failed to load entity: %w", err)
 	}
 	return r, nil
 }

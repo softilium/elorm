@@ -29,7 +29,7 @@ func (T *FieldValueNumeric) Get() float64 {
 	return T.v
 }
 
-func (T *FieldValueNumeric) GetOld() float64 {
+func (T *FieldValueNumeric) Old() float64 {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 

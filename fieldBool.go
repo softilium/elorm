@@ -27,7 +27,7 @@ func (T *FieldValueBool) Get() bool {
 	return T.v
 }
 
-func (T *FieldValueBool) GetOld() bool {
+func (T *FieldValueBool) Old() bool {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 

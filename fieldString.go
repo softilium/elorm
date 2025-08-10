@@ -48,7 +48,7 @@ func (T *FieldValueString) Get() string {
 	return T.v
 }
 
-func (T *FieldValueString) GetOld() string {
+func (T *FieldValueString) Old() string {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 

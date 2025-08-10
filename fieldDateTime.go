@@ -28,7 +28,7 @@ func (T *FieldValueDateTime) Get() time.Time {
 	return T.v
 }
 
-func (T *FieldValueDateTime) GetOld() time.Time {
+func (T *FieldValueDateTime) Old() time.Time {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
