@@ -4,19 +4,6 @@ import (
 	"testing"
 )
 
-func mockFieldValueString() *FieldValueString {
-	return &FieldValueString{
-		fieldValueBase: fieldValueBase{
-			def: &FieldDef{
-				Name: "testField",
-				EntityDef: &EntityDef{
-					Factory: &Factory{},
-				},
-			},
-		},
-	}
-}
-
 func TestFieldValueString_SqlStringValue(t *testing.T) {
 	field := mockFieldValueString()
 	type line struct {

@@ -4,23 +4,6 @@ import (
 	"testing"
 )
 
-func mockFieldValueNumeric() *FieldValueNumeric {
-	return &FieldValueNumeric{
-		fieldValueBase: fieldValueBase{
-			def: &FieldDef{
-				Name:      "test_numeric",
-				Precision: 10,
-				Scale:     2,
-				EntityDef: &EntityDef{
-					Factory: &Factory{},
-				},
-			},
-		},
-		v:   7.62,
-		old: 3.14,
-	}
-}
-
 func TestFieldValueNumeric_Scan(t *testing.T) {
 	type args struct {
 		v any
