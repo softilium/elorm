@@ -18,24 +18,19 @@ func mockFieldValueString() *FieldValueString {
 }
 
 func TestFieldValueString_SqlStringValue(t *testing.T) {
-
 	field := mockFieldValueString()
-
 	type line struct {
 		values []any
 		expStr string
 		expErr bool
 	}
-
 	field.Set("testValue")
-
 	testCases := []line{
 		{values: []any{}, expStr: "'testValue'", expErr: false},
 		{values: []any{"newTestValue"}, expStr: "'newTestValue'", expErr: false},
 		{values: []any{"'123"}, expStr: "'''123'", expErr: false},
 		{values: []any{123}, expStr: "", expErr: true},
 	}
-
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			expStr, err := field.SqlStringValue(tc.values...)

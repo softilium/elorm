@@ -2,6 +2,7 @@ package elorm
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,11 +16,15 @@ type FieldValueNumeric struct {
 	lock sync.Mutex
 }
 
+func (T *FieldValueNumeric) rounded(v float64) float64 {
+	return math.Round(v*math.Pow(10, float64(T.def.Scale))) / math.Pow(10, float64(T.def.Scale))
+}
+
 func (T *FieldValueNumeric) Set(newValue float64) {
 	T.lock.Lock()
 	defer T.lock.Unlock()
 
-	T.v = newValue
+	T.v = T.rounded(newValue)
 }
 
 func (T *FieldValueNumeric) Get() float64 {
@@ -101,6 +106,7 @@ func (T *FieldValueNumeric) Scan(v any) error {
 	default:
 		return fmt.Errorf("FieldValueNumeric.Scan: unsupported type %T for field %s", v, T.def.Name)
 	}
+	T.v = T.rounded(T.v)
 	T.old = T.v
 	return nil
 }
