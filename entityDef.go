@@ -59,7 +59,7 @@ type EntityDef struct {
 }
 
 // AddStringFieldDef adds a string field definition to this entity def.
-func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*FieldDef, error) {
+func (T *EntityDef) AddStringFieldDef(name string, size int) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (T *EntityDef) AddStringFieldDef(name string, size int, defValue string) (*
 }
 
 // AddBoolFieldDef adds a boolean field definition to this entity def.
-func (T *EntityDef) AddBoolFieldDef(name string, defValue bool) (*FieldDef, error) {
+func (T *EntityDef) AddBoolFieldDef(name string) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (T *EntityDef) AddDateTimeFieldDef(name string) (*FieldDef, error) {
 }
 
 // AddIntFieldDef adds an integer field definition to this entity def.
-func (T *EntityDef) AddIntFieldDef(name string, defValue int64) (*FieldDef, error) {
+func (T *EntityDef) AddIntFieldDef(name string) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (T *EntityDef) AddRefFieldDef(name string, refType *EntityDef) (*FieldDef, 
 }
 
 // AddNumericFieldDef adds a numeric field definition to this entity def.
-func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int, DefValue float64) (*FieldDef, error) {
+func (T *EntityDef) AddNumericFieldDef(name string, Precision int, Scale int) (*FieldDef, error) {
 	if err := T.checkName(name); err != nil {
 		return nil, err
 	}

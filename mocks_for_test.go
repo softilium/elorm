@@ -74,11 +74,11 @@ func mockEntityDef_Orders(factory *Factory) *EntityDef {
 		panic(err)
 	}
 
-	nbr, _ := orderdef.AddStringFieldDef("OrderNbr", 255, "")
-	_, _ = orderdef.AddNumericFieldDef("OrderQty", 10, 2, 0.0)
+	nbr, _ := orderdef.AddStringFieldDef("OrderNbr", 255)
+	_, _ = orderdef.AddNumericFieldDef("OrderQty", 10, 2)
 	_, _ = orderdef.AddDateTimeFieldDef("OrderDate")
-	_, _ = orderdef.AddBoolFieldDef("OrderApproved", false)
-	_, _ = orderdef.AddIntFieldDef("OrderStatus", 0)
+	_, _ = orderdef.AddBoolFieldDef("OrderApproved")
+	_, _ = orderdef.AddIntFieldDef("OrderStatus")
 
 	orderdef.IndexDefs = append(orderdef.IndexDefs, &IndexDef{
 		Unique:    true,
@@ -105,9 +105,9 @@ func mockLinesEntityDef_Order(factory *Factory) *EntityDef {
 	}
 
 	ownerf, _ := orderlinedef.AddRefFieldDef("OrderRef", orderdef)
-	_, _ = orderlinedef.AddNumericFieldDef("LineQty", 10, 2, 0.0)
-	_, _ = orderlinedef.AddStringFieldDef("LineDescription", 255, "")
-	_, _ = orderlinedef.AddIntFieldDef("LineDescription", 0)
+	_, _ = orderlinedef.AddNumericFieldDef("LineQty", 10, 2)
+	_, _ = orderlinedef.AddStringFieldDef("LineDescription", 255)
+	_, _ = orderlinedef.AddIntFieldDef("LineDescription")
 	orderlinedef.AutoExpandFieldsForJSON = map[*FieldDef]bool{ownerf: true}
 
 	mckLinesEntityDef_Order = orderlinedef

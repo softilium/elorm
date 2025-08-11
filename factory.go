@@ -300,12 +300,12 @@ func (T *Factory) CreateEntityDef(ObjectName string, TableName string) (*EntityD
 		return nil, fmt.Errorf("Factory.CreateEntityDef: error creating Ref field for %s: %w", ObjectName, err)
 	}
 
-	r.IsDeletedField, err = r.AddBoolFieldDef(IsDeletedFieldName, false)
+	r.IsDeletedField, err = r.AddBoolFieldDef(IsDeletedFieldName)
 	if err != nil {
 		return nil, fmt.Errorf("Factory.CreateEntityDef: error creating IsDeleted field for %s: %w", ObjectName, err)
 	}
 
-	r.DataVersionField, err = r.AddStringFieldDef(DataVersionFieldName, 20, "")
+	r.DataVersionField, err = r.AddStringFieldDef(DataVersionFieldName, 20)
 	if err != nil {
 		return nil, fmt.Errorf("Factory.CreateEntityDef: error creating DataVersion field for %s: %w", ObjectName, err)
 	}
