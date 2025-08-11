@@ -3,6 +3,7 @@
 The Golang ORM for crafting elegant, database-powered applications.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/softilium/elorm.svg)](https://pkg.go.dev/github.com/softilium/elorm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/softilium/elorm)](https://goreportcard.com/report/github.com/softilium/elorm)
 
 ## Ideas Under the Hood
 
