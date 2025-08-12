@@ -19,16 +19,16 @@ func sendHttpError(w http.ResponseWriter, message string, statusCode int) {
 type RestApiConfig[T IEntity] struct {
 
 	// Entity Definition
-	Def EntityDef
+	Def *EntityDef
 
 	// Typically, it's LoadXXX from generated code, e.g. LoadShop
-	LoadEntityFunc func(ref string) (*T, error)
+	LoadEntityFunc func(ref string) (T, error)
 
 	// Typically, it's SelectEntities from generated code, e.g. DB.ShopDef.SelectEntities
-	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pagesCount int, err error)
+	SelectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []T, pagesCount int, err error)
 
 	// Typically, it's CreateXXX from generated code, e.g. DB.CreateShop
-	CreateEntityFunc func() (*T, error)
+	CreateEntityFunc func() (T, error)
 
 	// Additional headers to include into the response
 	AdditionalHeaders map[string]string
@@ -84,10 +84,10 @@ const DefaultPageSize = 20
 
 // CreateStdRestApiConfig creates a new RestApiConfig for standard REST API operations.
 func CreateStdRestApiConfig[T IEntity](
-	def EntityDef,
-	loadEntityFunc func(ref string) (*T, error),
-	selectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []*T, pages int, err error),
-	createEntityFunc func() (*T, error)) RestApiConfig[T] {
+	def *EntityDef,
+	loadEntityFunc func(ref string) (T, error),
+	selectEntitiesFunc func(filters []*Filter, sorts []*SortItem, pageNo int, pageSize int) (result []T, pages int, err error),
+	createEntityFunc func() (T, error)) RestApiConfig[T] {
 	return RestApiConfig[T]{
 		Def:                def,
 		LoadEntityFunc:     loadEntityFunc,
@@ -199,7 +199,7 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 		return
 	}
 
-	err = (*dbRecord).LoadFrom((*reqRecord), false)
+	err = dbRecord.LoadFrom(reqRecord, false)
 	if err != nil {
 		sendHttpError(w, fmt.Sprintf("%sfailed to load data into entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -209,7 +209,7 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 	if config.Context != nil {
 		ctx = config.Context(r)
 	}
-	err = (*dbRecord).Save(ctx)
+	err = dbRecord.Save(ctx)
 	if err != nil {
 		sendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -219,7 +219,7 @@ func responsePut[T IEntity](config RestApiConfig[T], r *http.Request, w http.Res
 func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *http.Request) {
 	const methodPrefix = "RestApiConfig.responsePost: "
 	newRecord, err := config.CreateEntityFunc()
-	refFld := (*newRecord).GetValues()[RefFieldName].(*FieldValueRef)
+	refFld := newRecord.GetValues()[RefFieldName].(*FieldValueRef)
 	oldRef := refFld.v
 	if err != nil {
 		sendHttpError(w, fmt.Sprintf("%sfailed to create entity: %v", methodPrefix, err), http.StatusInternalServerError)
@@ -241,7 +241,7 @@ func responsePost[T IEntity](config RestApiConfig[T], w http.ResponseWriter, r *
 	if refFld.v == "" {
 		refFld.v = oldRef
 	}
-	err = (*newRecord).Save(ctx)
+	err = newRecord.Save(ctx)
 	if err != nil {
 		sendHttpError(w, fmt.Sprintf("%sfailed to save entity: %v", methodPrefix, err), http.StatusInternalServerError)
 		return
@@ -412,7 +412,7 @@ func responseGetList[T IEntity](config RestApiConfig[T], r *http.Request, w http
 	}
 
 	response := struct {
-		Data       []*T
+		Data       []T
 		PagesCount int
 	}{
 		Data:       records,

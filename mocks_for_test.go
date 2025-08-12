@@ -1,6 +1,11 @@
 package elorm
 
-import "os"
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+)
 
 func mockFieldValueNumeric() *FieldValueNumeric {
 	return &FieldValueNumeric{
@@ -125,5 +130,50 @@ func mockEntity_OrderLine() *Entity {
 		panic(err)
 	}
 
+	return result
+}
+
+func mock_ClearEntities(t *testing.T) {
+	factory := mockFactory()
+	linesDef := mockEntityDef_Orders(factory)
+	ordersDef := mockEntityDef_Orders(factory)
+
+	allLines, _, err := linesDef.SelectEntities(nil, nil, 0, 0)
+	if err != nil {
+		t.Errorf("SelectEntities() error = %v", err)
+	}
+	for _, line := range allLines {
+		err = factory.DeleteEntity(context.Background(), line.RefString())
+		if err != nil {
+			t.Errorf("DeleteEntity() error = %v", err)
+		}
+	}
+
+	allOrders, _, err := ordersDef.SelectEntities(nil, nil, 0, 0)
+	if err != nil {
+		t.Errorf("SelectEntities() error = %v", err)
+	}
+	for _, order := range allOrders {
+		err = factory.DeleteEntity(context.Background(), order.RefString())
+		if err != nil {
+			t.Errorf("DeleteEntity() error = %v", err)
+		}
+	}
+
+}
+
+const seedCount = 50
+
+func mock_SeedEntities(t *testing.T) []string {
+	result := make([]string, seedCount)
+	for i := range seedCount {
+		ent1 := mockEntity_OrderLine()
+		ent1.Values["OrderNbr"].(*FieldValueString).Set(fmt.Sprintf("OrderNbr_%d", i))
+		err := ent1.Save(context.Background())
+		if err != nil {
+			t.Errorf("Entity.Save() error = %v", err)
+		}
+		result[i] = ent1.RefString()
+	}
 	return result
 }

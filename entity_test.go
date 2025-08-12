@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -99,46 +98,18 @@ func TestEntity_JSON(t *testing.T) {
 }
 
 func TestSelectEntities(t *testing.T) {
-
 	factory := mockFactory()
-	linesDef := mockEntityDef_Orders(factory)
 	ordersDef := mockEntityDef_Orders(factory)
 
-	allLines, _, err := linesDef.SelectEntities(nil, nil, 0, 0)
-	if err != nil {
-		t.Errorf("SelectEntities() error = %v", err)
-	}
-	for _, line := range allLines {
-		err = factory.DeleteEntity(context.Background(), line.RefString())
-		if err != nil {
-			t.Errorf("DeleteEntity() error = %v", err)
-		}
-	}
+	mock_ClearEntities(t)
 
-	allOrders, _, err := ordersDef.SelectEntities(nil, nil, 0, 0)
-	if err != nil {
-		t.Errorf("SelectEntities() error = %v", err)
-	}
-	for _, order := range allOrders {
-		err = factory.DeleteEntity(context.Background(), order.RefString())
-		if err != nil {
-			t.Errorf("DeleteEntity() error = %v", err)
-		}
-	}
+	mock_SeedEntities(t)
 
-	const tstcnt = 50
-	for i := 0; i < tstcnt; i++ {
-		ent1 := mockEntity_OrderLine()
-		ent1.Values["OrderNbr"].(*FieldValueString).Set(fmt.Sprintf("OrderNbr_%d", i))
-		err = ent1.Save(context.Background())
-		if err != nil {
-			t.Errorf("Entity.Save() error = %v", err)
-		}
-	}
+	var err error
 
 	Nbr := ordersDef.FieldDefByName("OrderNbr")
 
-	allLines, _, err = ordersDef.SelectEntities([]*Filter{
+	allLines, _, err := ordersDef.SelectEntities([]*Filter{
 		AddFilterEQ(Nbr, "ww"),
 		AddFilterNOEQ(Nbr, "qq"),
 	}, nil, 10, 1)
