@@ -55,7 +55,7 @@ func mockFactory() *Factory {
 		panic(err)
 	}
 	result.EntityDefs = append(result.EntityDefs, mockEntityDef_Orders(result))
-	result.EntityDefs = append(result.EntityDefs, mockLinesEntityDef_Order(result))
+	result.EntityDefs = append(result.EntityDefs, mockEntityDef_OrderLines(result))
 
 	err = result.EnsureDBStructure()
 	if err != nil {
@@ -85,21 +85,21 @@ func mockEntityDef_Orders(factory *Factory) *EntityDef {
 	_, _ = orderdef.AddBoolFieldDef("OrderApproved")
 	_, _ = orderdef.AddIntFieldDef("OrderStatus")
 
-	orderdef.IndexDefs = append(orderdef.IndexDefs, &IndexDef{
-		Unique:    true,
-		FieldDefs: []*FieldDef{nbr},
-	})
+	err = orderdef.AddIndex(true, *nbr)
+	if err != nil {
+		panic(err)
+	}
 
 	mckEntityDef_Orders = orderdef
 	return orderdef
 }
 
-var mckLinesEntityDef_Order *EntityDef
+var mckEntityDef_OrderLines *EntityDef
 
-func mockLinesEntityDef_Order(factory *Factory) *EntityDef {
+func mockEntityDef_OrderLines(factory *Factory) *EntityDef {
 
-	if mckLinesEntityDef_Order != nil {
-		return mckLinesEntityDef_Order
+	if mckEntityDef_OrderLines != nil {
+		return mckEntityDef_OrderLines
 	}
 
 	orderdef := mockEntityDef_Orders(factory)
@@ -112,10 +112,10 @@ func mockLinesEntityDef_Order(factory *Factory) *EntityDef {
 	ownerf, _ := orderlinedef.AddRefFieldDef("OrderRef", orderdef)
 	_, _ = orderlinedef.AddNumericFieldDef("LineQty", 10, 2)
 	_, _ = orderlinedef.AddStringFieldDef("LineDescription", 255)
-	_, _ = orderlinedef.AddIntFieldDef("LineDescription")
+	_, _ = orderlinedef.AddIntFieldDef("LineOrder")
 	orderlinedef.AutoExpandFieldsForJSON = map[*FieldDef]bool{ownerf: true}
 
-	mckLinesEntityDef_Order = orderlinedef
+	mckEntityDef_OrderLines = orderlinedef
 	return orderlinedef
 
 }

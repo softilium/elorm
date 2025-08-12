@@ -404,7 +404,7 @@ func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
 
 	newIndex := &IndexDef{Unique: Unique, FieldDefs: make([]*FieldDef, 0)}
 	for _, v := range fld {
-		if T.FieldDefByName(v.Name) == nil {
+		if v.EntityDef != T {
 			return fmt.Errorf("EntityDef.AddIndex: field %s does not belong to entity %s", v.Name, T.ObjectName)
 		}
 		newIndex.FieldDefs = append(newIndex.FieldDefs, &v)
