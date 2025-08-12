@@ -382,7 +382,7 @@ func (T *EntityDef) loadDatabaseIndexesSQLite() ([]*indexItem, error) {
 //
 // Returns:
 //   - error: describing the reason for failure, or nil if the index was added successfully.
-func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
+func (T *EntityDef) AddIndex(Unique bool, fld ...*FieldDef) error {
 	if len(fld) == 0 {
 		return fmt.Errorf("EntityDef.AddIndex: no fields provided for index")
 	}
@@ -404,10 +404,11 @@ func (T *EntityDef) AddIndex(Unique bool, fld ...FieldDef) error {
 
 	newIndex := &IndexDef{Unique: Unique, FieldDefs: make([]*FieldDef, 0)}
 	for _, v := range fld {
-		if v.EntityDef != T {
+
+		if !slices.Contains(T.FieldDefs, v) {
 			return fmt.Errorf("EntityDef.AddIndex: field %s does not belong to entity %s", v.Name, T.ObjectName)
 		}
-		newIndex.FieldDefs = append(newIndex.FieldDefs, &v)
+		newIndex.FieldDefs = append(newIndex.FieldDefs, v)
 	}
 
 	for _, v := range T.IndexDefs {

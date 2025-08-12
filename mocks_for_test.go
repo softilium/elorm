@@ -85,7 +85,7 @@ func mockEntityDef_Orders(factory *Factory) *EntityDef {
 	_, _ = orderdef.AddBoolFieldDef("OrderApproved")
 	_, _ = orderdef.AddIntFieldDef("OrderStatus")
 
-	err = orderdef.AddIndex(true, *nbr)
+	err = orderdef.AddIndex(true, nbr)
 	if err != nil {
 		panic(err)
 	}
