@@ -99,7 +99,13 @@ func (T *Entity) Save(ctx context.Context) error {
 		}
 	}
 	for _, hndl := range T.entityDef.beforeSaveHandlers {
-		if err := hndl(ctx, T.entityDef.Wrap(T)); err != nil {
+		var err error
+		if T.entityDef.Wrap == nil {
+			err = hndl(ctx, T.entityDef)
+		} else {
+			err = hndl(ctx, T.entityDef.Wrap(T))
+		}
+		if err != nil {
 			return fmt.Errorf("Entity.Save: beforeSaveHandler failed for ref %s: %w", T.ref.AsString(), err)
 		}
 	}

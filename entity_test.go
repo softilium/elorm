@@ -77,11 +77,11 @@ func TestEntity_JSON(t *testing.T) {
 				t.Errorf("Entity.LoadFrom() error = %v", err)
 			}
 
-			nbr := mockEntityDef_Orders(mockFactory()).FieldDefByName("OrderNbr")
-			oldNbr := ent2.Values[nbr.Name].(*FieldValueString).v
-			ent3.Values[nbr.Name].(*FieldValueString).Set(oldNbr + "_updated")
+			ldesc := mockEntityDef_OrderLines(mockFactory()).FieldDefByName("LineDescription")
+			oldNbr := ent2.Values[ldesc.Name].(*FieldValueString).v
+			ent2.Values[ldesc.Name].(*FieldValueString).Set(oldNbr + "_updated")
 
-			err = ent3.Save(context.Background())
+			err = ent2.Save(context.Background())
 			if err != nil {
 				t.Errorf("Entity.Save() error = %v, wantErr %v", err, tt.wantErr)
 			}

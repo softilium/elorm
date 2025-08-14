@@ -54,10 +54,34 @@ func mockFactory() *Factory {
 	if err != nil {
 		panic(err)
 	}
-	result.EntityDefs = append(result.EntityDefs, mockEntityDef_Orders(result))
-	result.EntityDefs = append(result.EntityDefs, mockEntityDef_OrderLines(result))
+
+	ordersdef := mockEntityDef_Orders(result)
+	linesdef := mockEntityDef_OrderLines(result)
+
+	result.EntityDefs = append(result.EntityDefs, ordersdef)
+	result.EntityDefs = append(result.EntityDefs, linesdef)
 
 	err = result.EnsureDBStructure()
+	if err != nil {
+		panic(err)
+	}
+
+	err = result.AddBeforeDeleteHandler(ordersdef, func(ctx context.Context, ent any) error { return nil })
+	if err != nil {
+		panic(err)
+	}
+
+	err = result.AddBeforeDeleteHandlerByRef(ordersdef, func(ctx context.Context, ref string) error { return nil })
+	if err != nil {
+		panic(err)
+	}
+
+	err = result.AddBeforeSaveHandler(ordersdef, func(ctx context.Context, ent any) error { return nil })
+	if err != nil {
+		panic(err)
+	}
+
+	err = result.AddBeforeSaveHandlerByRef(ordersdef, func(ctx context.Context, ref string) error { return nil })
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +147,20 @@ func mockEntityDef_OrderLines(factory *Factory) *EntityDef {
 func mockEntity_OrderLine() *Entity {
 
 	factory := mockFactory()
-	def := factory.EntityDefs[1]
+	def := mockEntityDef_OrderLines(factory)
+
+	result, err := factory.CreateEntity(def)
+	if err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
+func mockEntity_Order() *Entity {
+
+	factory := mockFactory()
+	def := mockEntityDef_Orders(factory)
 
 	result, err := factory.CreateEntity(def)
 	if err != nil {
@@ -167,7 +204,7 @@ const seedCount = 50
 func mock_SeedEntities(t *testing.T) []string {
 	result := make([]string, seedCount)
 	for i := range seedCount {
-		ent1 := mockEntity_OrderLine()
+		ent1 := mockEntity_Order()
 		ent1.Values["OrderNbr"].(*FieldValueString).Set(fmt.Sprintf("OrderNbr_%d", i))
 		err := ent1.Save(context.Background())
 		if err != nil {
