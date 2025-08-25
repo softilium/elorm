@@ -110,9 +110,6 @@ func (T *Entity) Save(ctx context.Context) error {
 		}
 	}
 
-	T.Factory.loadsaveLock.Lock()
-	defer T.Factory.loadsaveLock.Unlock()
-
 	tableName, err := T.entityDef.SqlTableName()
 	if err != nil {
 		return fmt.Errorf("Entity.Save: failed to get SQL table name for entity %s: %w", T.entityDef.ObjectName, err)

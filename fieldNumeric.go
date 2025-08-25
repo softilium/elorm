@@ -83,7 +83,9 @@ func (T *FieldValueNumeric) Scan(v any) error {
 	defer T.lock.Unlock()
 
 	if v == nil {
-		return fmt.Errorf("FieldValueNumeric.Scan: nil value for field %s", T.def.Name)
+		T.v = 0
+		T.old = T.v
+		return nil
 	}
 	switch vtyped := v.(type) {
 	case float64:

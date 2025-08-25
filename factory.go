@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
@@ -33,9 +32,8 @@ type Factory struct {
 	dataVersionCheckMode int // controlled by setDataVersionCheckMode, default is DataVersionCheckDefault
 	dbDialect            int
 	db                   *sql.DB
-	activeTx             *sql.Tx    // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
-	nestedTxLevel        int        // Used to track nested transactions, so we can commit or rollback correctly.
-	loadsaveLock         sync.Mutex // Protect Load-Save operations from concurrent access.
+	activeTx             *sql.Tx // Active transaction, if any. Used to ensure that all entities are created in the same transaction.
+	nestedTxLevel        int     // Used to track nested transactions, so we can commit or rollback correctly.
 
 	AggressiveReadingCache bool // It assumes each database has only one factory instance, so it can cache entities aggressively.
 	EntityDefs             []*EntityDef
@@ -415,9 +413,6 @@ func (T *Factory) LoadEntity(Ref string) (*Entity, error) {
 	}
 
 	dvcm := def.ActualDataVersionCheckMode()
-
-	T.loadsaveLock.Lock()
-	defer T.loadsaveLock.Unlock()
 
 	fromCache, ok := T.loadedEntities.Get(Ref)
 	if ok {
