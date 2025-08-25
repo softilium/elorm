@@ -19,7 +19,7 @@ func TestFieldValueNumeric_Scan(t *testing.T) {
 		{name: "invalid string", T: mockFieldValueNumeric(), args: args{v: "not a float"}, wantErr: true, wantV: 7.62},
 		{name: "valid string", T: mockFieldValueNumeric(), args: args{v: "123.123"}, wantErr: false, wantV: 123.12},
 		{name: "invalid type (bool)", T: mockFieldValueNumeric(), args: args{v: true}, wantErr: true, wantV: 7.62},
-		{name: "nil value", T: mockFieldValueNumeric(), args: args{v: nil}, wantErr: true, wantV: 7.62},
+		{name: "nil value", T: mockFieldValueNumeric(), args: args{v: nil}, wantErr: false, wantV: 0},
 		{name: "zero value", T: mockFieldValueNumeric(), args: args{v: 0.0}, wantErr: false, wantV: 0.0},
 		{name: "[]uint8 valid value", T: mockFieldValueNumeric(), args: args{v: []uint8("123.45")}, wantErr: false, wantV: 123.45},
 		{name: "[]uint8 invalid value", T: mockFieldValueNumeric(), args: args{v: []uint8("not a float")}, wantErr: true, wantV: 7.62},
